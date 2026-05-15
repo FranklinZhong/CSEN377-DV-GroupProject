@@ -1,11 +1,11 @@
 <!--
-  AnatomyBody.vue — Vis 1 交互式解剖人体（v3.5 替代 BodyMap.vue）
+  AnatomyBody.vue — Vis 1 interactive anatomy figure (v3.5, replaces BodyMap.vue)
 
-  - 解剖学风格 SVG：皮肤渐变 + 实体器官 + 血管纹理 + 呼吸/心跳动画
-  - viewMode = 'benefits' | 'side_effects' | 'both' → 高亮颜色切换
-  - 接受 effects: Effect[]，按 body_part 决定每个器官高亮强度
-  - hover 触发 emit('update:hovered', body_part)
-  - prefers-reduced-motion 支持
+  - Anatomical-style SVG: skin gradient + solid organs + vascular texture + breathing/heartbeat animations
+  - viewMode = 'benefits' | 'side_effects' | 'both' → switches highlight color scheme
+  - Accepts effects: Effect[]; highlight intensity per organ is determined by body_part
+  - Hover emits ('update:hovered', body_part)
+  - Respects prefers-reduced-motion
 -->
 <template>
   <div class="anatomy-wrap" :class="{ 'reduce-motion': reduceMotion }">

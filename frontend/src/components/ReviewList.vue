@@ -1,12 +1,12 @@
 <!--
-  ReviewList.vue — 真实评论分页查看器（v3.5）
+  ReviewList.vue — Paginated patient review viewer (v3.5)
 
   props:
-    drugId       药品 id
-    initialBodyPart  默认过滤的 body_part（'all' 或具体如 'stomach'）
-    initialSentiment 默认情感过滤
+    drugId           drug id
+    initialBodyPart  default body_part filter ('all' or a specific part e.g. 'stomach')
+    initialSentiment default sentiment filter
 
-  调用 /api/drugs/{id}/reviews/list 分页拉数据
+  Fetches paginated data from /api/drugs/{id}/reviews/list
 -->
 <template>
   <div class="rl-wrap">

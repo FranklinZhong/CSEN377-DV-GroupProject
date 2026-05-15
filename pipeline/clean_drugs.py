@@ -1,11 +1,11 @@
 """
-clean_drugs.py — 一次性数据库清理脚本
+clean_drugs.py — One-shot database cleanup script
 
-删除 drugs 表中的非药品条目（过敏原、膳食补充剂、配方代码、OTC 描述性名称等），
-并同步清理 effects / review_clusters / search_index / drug_aliases 中的关联记录。
+Removes non-drug entries from the drugs table (allergens, dietary supplements,
+formulation codes, OTC descriptive names, etc.) and cascades the deletion to
+related records in effects / review_clusters / search_index / drug_aliases.
 
-运行方式：
-    cd medinsight
+Usage:
     python pipeline/clean_drugs.py
 """
 
@@ -17,25 +17,25 @@ DB = Path(__file__).parent.parent / "data" / "processed" / "medinsight.db"
 
 BAD_PATTERNS = [
     re.compile(r'\s+mix$', re.I),                   # "3 weed mix", "common weed mix"
-    re.compile(r'pollen', re.I),                     # 花粉提取物
-    re.compile(r'ragweed', re.I),                    # 豚草
-    re.compile(r'cat\s+hair', re.I),                 # 猫毛过敏原
+    re.compile(r'pollen', re.I),                     # pollen extract
+    re.compile(r'ragweed', re.I),                    # ragweed allergen
+    re.compile(r'cat\s+hair', re.I),                 # cat hair allergen
     re.compile(r'\b(mugwort|bermuda|juglans|carya|agrostis|dactylis|phleum)\b', re.I),
-    re.compile(r'dietary\s+supplement', re.I),       # 膳食补充剂
-    re.compile(r'hair\s+regrowth', re.I),            # 护发产品
-    re.compile(r'^acai\b', re.I),                    # acai 补充剂
-    re.compile(r'^\d+[a-z]+-\d+', re.I),            # 配方代码 "20dm-4cpm", "25dph-7.5peh"
+    re.compile(r'dietary\s+supplement', re.I),       # dietary supplement
+    re.compile(r'hair\s+regrowth', re.I),            # hair care product
+    re.compile(r'^acai\b', re.I),                    # acai supplement
+    re.compile(r'^\d+[a-z]+-\d+', re.I),            # formulation codes e.g. "20dm-4cpm"
     re.compile(
         r',\s*(tablet|capsule|solution|suspension|injection|cream|gel|'
         r'patch|ointment|powder|vial|reconstituted|sublingual|'
         r'effervescent|disintegrating|non-aerosol|non-)',
         re.I,
-    ),                                                # 未剥离配方名 "abstral tablet, sublingual"
-    re.compile(r'hour\s+(pain|nasal)\s+relief', re.I),  # OTC 描述 "8 hour pain relief"
+    ),                                                # un-stripped formulation name e.g. "abstral tablet, sublingual"
+    re.compile(r'hour\s+(pain|nasal)\s+relief', re.I),  # OTC descriptor e.g. "8 hour pain relief"
     re.compile(r',\s*(rectal|chewable|medicated|transdermal|extended\s*release|'
-               r'drops|irrigation|inhalation|micronized)', re.I),  # 额外配方描述
-    re.compile(r'^\s*alcohol,\s+rubbing\s*$', re.I),  # "alcohol, rubbing" 是 isopropyl alcohol 的别名
-    re.compile(r',\s*$', re.I),                        # 尾部逗号（截断/不完整名称）
+               r'drops|irrigation|inhalation|micronized)', re.I),  # extra formulation descriptors
+    re.compile(r'^\s*alcohol,\s+rubbing\s*$', re.I),  # "alcohol, rubbing" is alias for isopropyl alcohol
+    re.compile(r',\s*$', re.I),                        # trailing comma (truncated / incomplete name)
 ]
 
 
@@ -46,7 +46,7 @@ def is_bad(name: str) -> bool:
 
 
 def delete_comma_duplicates(conn: sqlite3.Connection) -> int:
-    """删除 name 含逗号、且逗号前的 base name 已作为独立条目存在的重复条目。"""
+    """Remove comma-variant entries whose base name already exists as a standalone drug."""
     rows = conn.execute("SELECT id, name FROM drugs WHERE name LIKE '%,%'").fetchall()
     dup_ids = []
     for r in rows:
@@ -77,7 +77,7 @@ def main():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
 
-    # 1. 找出所有脏条目
+    # 1. Find all bad entries
     all_drugs = conn.execute("SELECT id, name FROM drugs").fetchall()
     bad = [(r["id"], r["name"]) for r in all_drugs if is_bad(r["name"])]
     bad_ids = [r[0] for r in bad]
@@ -95,7 +95,7 @@ def main():
     if len(bad) > 30:
         print(f"  ... and {len(bad) - 30} more")
 
-    # 2. 用占位符批量删除（SQLite 支持 999 个参数上限，分批处理）
+    # 2. Batch delete (SQLite supports max ~999 params; process in chunks of 500)
     def delete_in_batches(table: str, col: str, ids: list):
         total = 0
         batch_size = 500
@@ -114,14 +114,14 @@ def main():
     n_clusters = delete_in_batches("review_clusters", "drug_id", bad_ids)
     n_index    = delete_in_batches("search_index",    "drug_id", bad_ids)
 
-    # drug_aliases 用 canonical_name 关联（是 name 字符串，不是 id）
+    # drug_aliases links by name string (canonical_name), not by id
     n_aliases = delete_in_batches("drug_aliases", "canonical_name", bad_names)
 
     n_drugs = delete_in_batches("drugs", "id", bad_ids)
 
     conn.commit()
 
-    # 3. 删除逗号重复条目（base name 已独立存在的）
+    # 3. Remove comma-variant duplicates (base name already exists as standalone)
     n_dup = delete_comma_duplicates(conn)
     conn.commit()
     conn.close()

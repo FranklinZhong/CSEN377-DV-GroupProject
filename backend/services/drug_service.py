@@ -1,5 +1,5 @@
 """
-drug_service.py  —  药品查找 / 别名解析 / 搜索索引
+drug_service.py — Drug lookup, alias resolution, and search index.
 """
 
 import re
@@ -7,7 +7,7 @@ import sqlite3
 from rapidfuzz import fuzz, process
 
 
-# ── 规范化（与 build_drug_aliases 保持一致） ─────────────────────────────────
+# ── Normalization (mirrors build_drug_aliases.normalize) ─────────────────────
 
 _SUFFIX = re.compile(
     r"\s+(hcl|hbr|hydrochloride|hydrobromide|sodium|potassium|"
@@ -60,16 +60,16 @@ def find_alt_drug_id(drug_id: int, name: str, conn: sqlite3.Connection) -> int |
     return None
 
 
-# ── 搜索 ──────────────────────────────────────────────────────────────────────
+# ── Search ────────────────────────────────────────────────────────────────────
 
 def search_drugs(q: str, conn: sqlite3.Connection, limit: int = 20) -> list[dict]:
     """
-    关键词前缀搜索（支持别名）。
-    返回 [{ drug_id, name, generic_name, main_use, risk_level, match_type, score }]
+    Prefix search with alias support.
+    Returns [{ drug_id, name, generic_name, main_use, risk_level, match_type, score }]
     """
     q_norm = normalize(q)
 
-    # 1. 精确前缀匹配
+    # 1. Exact prefix match
     rows = conn.execute(
         """
         SELECT DISTINCT d.id, d.name, d.generic_name, d.indication_summary, d.risk_level
@@ -84,7 +84,7 @@ def search_drugs(q: str, conn: sqlite3.Connection, limit: int = 20) -> list[dict
     if rows:
         return [_row_to_result(r, "prefix", 1.0) for r in rows]
 
-    # 2. 通过 drug_aliases 查通用名，再搜索
+    # 2. Alias lookup → search by canonical name
     alias_row = conn.execute(
         "SELECT canonical_name FROM drug_aliases WHERE alias LIKE ? LIMIT 1",
         (f"{q_norm}%",),
@@ -109,8 +109,8 @@ def search_drugs(q: str, conn: sqlite3.Connection, limit: int = 20) -> list[dict
 
 def fuzzy_search(q: str, conn: sqlite3.Connection, limit: int = 10) -> list[dict]:
     """
-    模糊搜索（Levenshtein），用于拼写错误场景。
-    返回候选列表，auto_redirect=False。
+    Fuzzy (Levenshtein) search for spelling-error tolerance.
+    Returns candidate list; auto_redirect is always False.
     """
     q_norm = normalize(q)
     all_names = conn.execute(
@@ -194,7 +194,7 @@ def index_drug(drug_id: int, name: str, conn: sqlite3.Connection):
     )
 
 
-# ── 辅助 ──────────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _row_to_result(row, match_type: str, score: float) -> dict:
     return {

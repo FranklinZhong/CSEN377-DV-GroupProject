@@ -1,12 +1,12 @@
 <!--
-  TugOfWarChart.vue — Vis 3 拔河图（v3.5 替代 IsotypeGrid 的蝴蝶图）
+  TugOfWarChart.vue — Vis 3 tug-of-war sentiment chart (v3.5, replaces IsotypeGrid)
 
-  每个 body_part = 一根绳子
-  - 中心线 = 0 (neutral)
-  - 绳结位置：(positive - negative) / (positive + negative)，映射到 [-1, +1]
-  - 绳子颜色：从红到绿渐变（按净情感）
-  - 绳子粗细：评论数 √ 缩放
-  - 点击行 → 打开抽屉嵌入 ReviewList
+  Each body_part is one rope:
+  - Center line = 0 (neutral)
+  - Knot position: (positive - negative) / (positive + negative), mapped to [-1, +1]
+  - Rope color: red-to-green gradient by net sentiment
+  - Rope thickness: √-scaled by review count
+  - Click a row to open the ReviewList drawer
 -->
 <template>
   <div class="tow-wrap">

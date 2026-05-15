@@ -294,114 +294,97 @@ def write_report(report_path: Path, master_df: pd.DataFrame, latest_df: pd.DataF
     prod_table = pd.DataFrame(product_type_counts.most_common(10), columns=["product_type", "count"]).to_markdown(index=False)
     route_table = pd.DataFrame(route_counts.most_common(10), columns=["route", "count"]).to_markdown(index=False)
 
-    text = f"""# openFDA Drug Labeling 数据清理结果报告
+    text = f"""# openFDA Drug Labeling — Cleaning Report
 
-## 1. 数据来源与清理目标
+## 1. Overview
 
-本次清理对象是 openFDA Drug Labeling bulk dataset，即 `/drug/label` 端点下载得到的 `drug-label-0001-of-0013.json.zip` 到 `drug-label-0013-of-0013.json.zip`。每个 zip 内含一个 JSON 文件，结构为 `meta` 和 `results`；`results` 中每条记录是一份 Structured Product Labeling, SPL, 药品标签记录。
+Input: openFDA Drug Labeling bulk dataset (`/drug/label` endpoint), files
+`drug-label-0001-of-0013.json.zip` through `drug-label-0013-of-0013.json.zip`.
+Each zip contains one JSON file with `meta` and `results`; each result record is a
+Structured Product Labeling (SPL) entry.
 
-清理目标是把原始嵌套 JSON 转换为可分析的数据表：
+Outputs:
+1. `clean_label_master.csv` — one row per SPL version (or one per `set_id` by default)
+2. `openfda_product_long.csv` — brand/generic/NDC/route/substance fields in long format
+3. `field_coverage.csv` — field coverage rates before and after cleaning
+4. `source_file_summary.csv` — per-zip read statistics
+5. `cleaning_result_report.md` — this report
 
-1. `clean_label_master.csv`：每个 SPL 标签版本一行，或默认每个 `set_id` 只保留最新版本一行；
-2. `openfda_product_long.csv`：把 brand/generic/NDC/route/substance 等多值字段展开为 long format；
-3. `field_coverage.csv`：统计原始字段与清理字段覆盖率；
-4. `source_file_summary.csv`：统计每个 zip 文件读取情况；
-5. `cleaning_result_report.md`：自动生成清理结果报告。
-
-## 2. 本次运行输入文件
+## 2. Input files
 
 {source_table}
 
-## 3. 核心清理策略
+## 3. Cleaning strategy
 
-### 3.1 读取与结构校验
+### 3.1 Read and validate
 
-脚本逐个读取 `drug-label-*.json.zip`，检查 zip 内是否存在 `.json` 文件，并检查 JSON 顶层是否包含 `results`。每条记录附加 `source_file` 和 `record_hash`，方便追溯来源与检测完全重复记录。
+Script reads each `drug-label-*.json.zip`, verifies a `.json` file is present, and
+checks that the top-level JSON contains `results`. Each record gets `source_file` and
+`record_hash` columns for traceability.
 
-### 3.2 字段标准化
+### 3.2 Field normalization
 
-- `id`, `set_id`, `version`, `effective_time` 被提取为核心版本字段。
-- `effective_time` 从 `YYYYMMDD` 转换为 ISO 日期 `YYYY-MM-DD`。
-- `openfda` 下的嵌套字段统一展开为 `openfda_*` 列，例如 `openfda_brand_name`, `openfda_generic_name`, `openfda_product_ndc`, `openfda_route`。
-- 原始数组字段被清理为空格标准化、去重、并用 `;` 合并。
-- 长文本 SPL sections 被清理多余空格和重复片段，但不改变医学原文语义。
+- Core version fields extracted: `id`, `set_id`, `version`, `effective_time`.
+- `effective_time` converted from `YYYYMMDD` to ISO `YYYY-MM-DD`.
+- Nested `openfda` fields flattened to `openfda_*` columns (e.g. `openfda_brand_name`).
+- Array fields deduplicated, whitespace-normalized, joined with `;`.
+- Long SPL text sections stripped of redundant whitespace; medical content unchanged.
 
-### 3.3 去重与版本选择
+### 3.3 Deduplication and version selection
 
-SPL 标签是 living document，同一 `set_id` 可能有多个版本。默认输出按 `set_id` 分组，保留 `version` 最大、`effective_date` 最新的记录。若要保留所有历史版本，可运行：
+SPL labels are living documents; the same `set_id` may have multiple versions. By
+default the script keeps the record with the highest `version` / latest `effective_date`
+per `set_id`. To retain all versions:
 
 ```bash
-python clean_openfda_drug_label_bulk.py --input-dir data/raw --output-dir data/processed --keep-all-versions
+python pipeline/clean_openfda_bulk.py --input-dir data/raw --output-dir data/processed --keep-all-versions
 ```
 
-当前运行模式：**{'保留所有版本' if keep_all_versions else '每个 set_id 保留最新版本'}**。
+Mode: **{'keep all versions' if keep_all_versions else 'latest version per set_id only'}**
 
-### 3.4 数据质量标记
+### 3.4 Data quality flags
 
-脚本生成以下质量字段：
+- `valid_id_guid`, `valid_set_id_guid` — GUID format check
+- `valid_effective_date` — date format and parseability
+- `valid_product_ndc_format`, `valid_package_ndc_format` — NDC format
+- `valid_unii_format`, `valid_rxcui_format` — drug identifier formats
+- `has_boxed_warning`, `has_adverse_reactions`, `has_drug_interactions`, `has_pregnancy_info`
+- `*_char_len` — text field lengths to detect empty or oversized content
 
-- `valid_id_guid`, `valid_set_id_guid`：检查 GUID 格式；
-- `valid_effective_date`：检查日期格式与可解析性；
-- `valid_product_ndc_format`, `valid_package_ndc_format`：检查 NDC 格式；
-- `valid_unii_format`, `valid_rxcui_format`：检查药品标识符格式；
-- `has_boxed_warning`, `has_adverse_reactions`, `has_drug_interactions`, `has_pregnancy_info`：重要标签内容是否存在；
-- `*_char_len`：主要文本字段长度，用于发现异常空文本或超长文本。
-
-## 4. 清理结果摘要
+## 4. Summary
 
 | Metric | Value |
 |---|---:|
-| 原始读取记录数 | {n_raw:,} |
-| 清理后主表记录数 | {n_clean:,} |
-| 重复 id 数 | {duplicated_id:,} |
-| 出现多版本的 set_id 相关记录数 | {duplicated_set:,} |
-| 日期范围 | {min_date} to {max_date} |
-| 有 openfda 注释比例 | {pct(latest_df['has_openfda']):.2f}% |
-| 有 boxed warning 比例 | {pct(latest_df['has_boxed_warning']):.2f}% |
-| 有 adverse reactions 比例 | {pct(latest_df['has_adverse_reactions']):.2f}% |
-| 有 drug interactions 比例 | {pct(latest_df['has_drug_interactions']):.2f}% |
-| 有 pregnancy info 比例 | {pct(latest_df['has_pregnancy_info']):.2f}% |
-| 有 OTC consumer fields 比例 | {pct(latest_df['has_otc_consumer_fields']):.2f}% |
+| Raw records read | {n_raw:,} |
+| Records in final master table | {n_clean:,} |
+| Duplicate ids | {duplicated_id:,} |
+| Records from multi-version set_ids | {duplicated_set:,} |
+| Date range | {min_date} to {max_date} |
+| Has openfda annotation | {pct(latest_df['has_openfda']):.2f}% |
+| Has boxed warning | {pct(latest_df['has_boxed_warning']):.2f}% |
+| Has adverse reactions | {pct(latest_df['has_adverse_reactions']):.2f}% |
+| Has drug interactions | {pct(latest_df['has_drug_interactions']):.2f}% |
+| Has pregnancy info | {pct(latest_df['has_pregnancy_info']):.2f}% |
+| Has OTC consumer fields | {pct(latest_df['has_otc_consumer_fields']):.2f}% |
 
-## 5. Product Type 分布 Top 10
+## 5. Product Type Top 10
 
 {prod_table}
 
-## 6. Route of Administration 分布 Top 10
+## 6. Route of Administration Top 10
 
 {route_table}
 
-## 7. 字段覆盖率 Top 20
+## 7. Field coverage Top 20
 
 {top_coverage}
 
-## 8. 建议的 GitHub 项目结构
+## 8. Limitations
 
-```text
-openfda-drug-label-cleaning/
-├── data/
-│   ├── raw/                         # 放 13 个原始 zip，不建议上传 GitHub
-│   └── processed/                   # 清理后 CSV
-├── reports/
-│   └── cleaning_result_report.md
-├── clean_openfda_drug_label_bulk.py
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
-
-建议 `.gitignore`：
-
-```text
-data/raw/
-*.zip
-__pycache__/
-.ipynb_checkpoints/
-```
-
-## 9. 重要限制
-
-该数据来自药品标签文件，标签内容会更新；openFDA 数据适合数据分析、检索和可视化，但不应该用于医疗决策。清理过程只做格式标准化、去重、字段展开和质量标记，不改变原始标签的医学含义。
+openFDA Drug Labeling is semi-structured pharmaceutical label text. This pipeline only
+normalizes formats, deduplicates versions, flattens fields, and flags quality issues —
+it does not alter the medical meaning of any label. This data must not be used for
+clinical decision-making.
 """
     report_path.write_text(text, encoding="utf-8")
 

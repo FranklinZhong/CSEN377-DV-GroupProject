@@ -17,7 +17,7 @@ export const useDrugStore = defineStore('drug', () => {
   const reviewClusters = ref<ReviewCluster[]>([])
 
   const effectFilter  = ref<EffectFilter>('sideeffects')
-  const viewMode      = ref<ViewMode>('benefits')   // v3.5 默认绿色 Benefits
+  const viewMode      = ref<ViewMode>('benefits')
   const hoveredPart   = ref<string | null>(null)
   const currentQuarter = ref<string | null>(null)
 
@@ -45,7 +45,7 @@ export const useDrugStore = defineStore('drug', () => {
     }
   })
 
-  // AnatomyBody 直接读：根据 viewMode 决定渲染哪些 effects
+  // Effects list used by AnatomyBody, filtered by current viewMode
   const anatomyEffects = computed<Effect[]>(() => {
     switch (viewMode.value) {
       case 'benefits':     return benefits.value
@@ -127,7 +127,7 @@ export const useDrugStore = defineStore('drug', () => {
       trendData.value = res.data.data.timeline || []
       signalEvents.value = res.data.data.signal_events || []
       warnings.value.trend = res.data.warnings
-      // 默认显示最新季度
+      // Default to the most recent quarter
       const quarters = [...new Set(trendData.value.map(p => p.quarter))].sort()
       currentQuarter.value = quarters.at(-1) ?? null
     } catch {

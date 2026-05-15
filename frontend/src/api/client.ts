@@ -1,11 +1,11 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '',   // Vite proxy 转发 /api/* → localhost:8000，无需跨域
+  baseURL: '',   // Vite proxy forwards /api/* → localhost:8000 (no CORS needed)
   timeout: 15000,
 })
 
-// ── Types (镜像 backend/schemas/common.py) ────────────────────────────────
+// ── Types (mirrors backend/schemas/common.py) ─────────────────────────────
 
 export interface Meta {
   source: string
@@ -135,7 +135,7 @@ export interface ReviewListQuery {
 // ── API functions ─────────────────────────────────────────────────────────
 
 export const api = {
-  // 搜索
+  // Search
   search: (q: string) =>
     client.get<ApiResponse<DrugResult[]>>('/api/search', { params: { q } }),
 
@@ -149,7 +149,7 @@ export const api = {
       params: { letter, ...(prefix && { prefix }) },
     }),
 
-  // 药品详情
+  // Drug details
   getDrug: (id: number) =>
     client.get<ApiResponse<DrugSummary>>(`/api/drugs/${id}`),
 
@@ -175,7 +175,7 @@ export const api = {
       `/api/drugs/${id}/reviews/list`, { params },
     ),
 
-  // 健康检查
+  // Health check
   health: () => client.get('/api/health'),
 }
 

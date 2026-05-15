@@ -23,7 +23,7 @@ def keyword_search(
 ):
     """
     GET /api/search?q=met
-    实时联想搜索，前缀匹配优先，支持别名。
+    Real-time autocomplete: prefix match with alias support.
     """
     results = search_drugs(q, conn)
     if not results:
@@ -39,7 +39,7 @@ def fuzzy_search_endpoint(
 ):
     """
     GET /api/search/fuzzy?q=amoxcillin
-    拼写容错搜索，auto_redirect=False（不自动跳转）。
+    Spelling-error tolerant search; auto_redirect is always False.
     """
     results = fuzzy_search(q, conn)
     return ok(
@@ -58,7 +58,7 @@ def index_search(
     """
     GET /api/search/index?letter=M
     GET /api/search/index?letter=M&prefix=ME
-    A-Z 分级索引。
+    A-Z browse index.
     """
     if prefix:
         rows = conn.execute(

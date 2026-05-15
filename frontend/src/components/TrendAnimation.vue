@@ -1,16 +1,16 @@
 <!--
-  TrendAnimation.vue — Vis 2 FAERS 季度时间轴动画
+  TrendAnimation.vue — Vis 2 FAERS quarterly timeline animation
 
-  功能：
-  - 从 /api/drugs/{id}/trend 获取多年季度数据（FAERS API 实时查询）
-  - D3 时间轴：2014Q1 → 现在，人体部位亮度随 report_count 变化
-  - 播放 / 暂停 / 拖拽 scrubbing
-  - CUSUM 信号季度标注 ⚠，hover 显示增幅
-  - Narrative 文字随时间轴自动更新
+  Features:
+  - Fetches multi-year quarterly data from /api/drugs/{id}/trend (live FAERS API)
+  - D3 timeline from 2014Q1 to present; organ brightness scales with report_count
+  - Play / pause / drag scrubbing
+  - CUSUM signal quarters annotated with ⚠; hover shows increase percentage
+  - Narrative text updates automatically as the timeline advances
 -->
 <template>
   <div class="trend-container">
-    <!-- 标题 + 控制 -->
+    <!-- Title + controls -->
     <div class="trend-header">
       <h3 class="vis-title">Side Effect Trend Over Time</h3>
       <div class="controls">
@@ -22,12 +22,12 @@
       </div>
     </div>
 
-    <!-- Narrative 文字 -->
+    <!-- Narrative text -->
     <div class="narrative" v-if="narrativeText">
       <el-icon><InfoFilled /></el-icon> {{ narrativeText }}
     </div>
 
-    <!-- 加载 / 空状态 -->
+    <!-- Loading / empty state -->
     <div v-if="loading" class="trend-placeholder">
       <el-skeleton :rows="2" animated />
       <p style="color:#64748b;margin-top:8px;font-size:0.85rem">
@@ -42,10 +42,10 @@
     </div>
 
     <template v-else>
-      <!-- 时间轴 SVG -->
+      <!-- Timeline SVG -->
       <div class="timeline-wrap" ref="timelineRef"></div>
 
-      <!-- 身体系统亮度条 -->
+      <!-- Body system brightness bars -->
       <div class="body-bars">
         <div v-for="row in currentFrame" :key="row.body_part" class="bar-row">
           <span class="bar-label">{{ row.body_part }}</span>
@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <!-- 信号事件列表 -->
+      <!-- Signal event list -->
       <div v-if="signalEvents.length" class="signal-list">
         <p class="signal-title">Detected Signal Events</p>
         <div v-for="ev in signalEvents" :key="`${ev.quarter}-${ev.body_part}`"

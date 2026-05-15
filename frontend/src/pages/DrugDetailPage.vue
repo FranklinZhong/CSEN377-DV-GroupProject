@@ -254,7 +254,7 @@ async function load(id: number) {
   await store.loadEffects(id)
   store.loadReviews(id)
 
-  // 自动 fallback：如果没有 benefits 数据，默认切到 side_effects
+  // Auto-fallback: if no benefit data, switch default view to side_effects
   if (store.benefits.length === 0 && store.sideEffects.length > 0) {
     store.viewMode = 'side_effects'
   } else if (store.benefits.length > 0) {

@@ -120,7 +120,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 │   └── setup_data.sh     One-shot data download + pipeline runner
 │
 ├── docs/
-│   └── 数据集说明_Dataset_Approval.md   Dataset sources + license notes
+│   └── DATASET_SOURCES.md               Dataset sources + license notes
 │
 ├── design/
 │   └── User_Story.md     User stories and requirements

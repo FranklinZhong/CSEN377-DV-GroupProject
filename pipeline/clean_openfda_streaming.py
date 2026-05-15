@@ -517,44 +517,46 @@ def write_report(path: Path, stats: Stats, keep_all_versions: bool) -> None:
 
     bool_pct = lambda name: round(stats.boolean_true.get(name, 0) / stats.final_records * 100, 2) if stats.final_records else 0
 
-    text = f"""# openFDA Drug Labeling 数据清理结果报告（Memory-Safe Streaming Version）
+    text = f"""# openFDA Drug Labeling — Cleaning Report (Memory-Safe Streaming Version)
 
-## 1. 为什么使用新版脚本
+## 1. Why this script
 
-旧版脚本会把 13 个 zip 的 JSON 结果一次性读入 Python list 和 pandas DataFrame，处理到第 6 或第 7 个 zip 时，macOS 很容易因为内存不足显示 `zsh: killed`。新版脚本采用 streaming pipeline：一次只读取一条 JSON record，逐条清洗，逐条写出 CSV，不再把全量数据放进内存。
+The legacy bulk script loaded all 13 zip files into Python lists and pandas DataFrames at once,
+causing `zsh: killed` on macOS by the 6th or 7th zip. This streaming version reads one JSON record
+at a time, cleans it, and writes it out immediately — keeping memory usage flat.
 
-## 2. 本次运行输入文件
+## 2. Input files
 
 {source_table}
 
-## 3. 清理策略
+## 3. Cleaning strategy
 
-1. 逐个扫描 `drug-label-*.json.zip`。
-2. 从每个 zip 内部 JSON 的顶层 `results` 数组逐条读取 record。
-3. 提取核心版本字段：`id`, `set_id`, `version`, `effective_time`。
-4. 将 `effective_time` 从 `YYYYMMDD` 转换为 `YYYY-MM-DD`。
-5. 展开 `openfda` 嵌套字段，例如 `openfda_brand_name`, `openfda_generic_name`, `openfda_product_ndc`, `openfda_route`。
-6. 对数组字段进行去重、空格标准化，并用 `;` 合并。
-7. 对长文本字段进行换行、重复空格清理，但不改变医学原文语义。
-8. 默认按 `set_id` 只保留最新版本；如果加 `--keep-all-versions`，则保留所有历史版本。
-9. 输出主表、long format 表、字段覆盖率表、source summary 和 Markdown 报告。
+1. Scan each `drug-label-*.json.zip` in sequence.
+2. Stream records from the top-level `results` array inside each zip's JSON.
+3. Extract core version fields: `id`, `set_id`, `version`, `effective_time`.
+4. Convert `effective_time` from `YYYYMMDD` to `YYYY-MM-DD`.
+5. Flatten nested `openfda` fields into `openfda_*` columns (e.g. `openfda_brand_name`, `openfda_generic_name`).
+6. Deduplicate and normalize array fields; join with `;`.
+7. Strip extra whitespace from long text fields without altering medical meaning.
+8. By default keep only the latest version per `set_id`; use `--keep-all-versions` to retain history.
+9. Output master table, long-format table, field coverage, source summary, and this Markdown report.
 
-当前运行模式：**{'保留所有历史版本' if keep_all_versions else '每个 set_id 只保留最新版本'}**。
+Mode: **{'keep all versions' if keep_all_versions else 'latest version per set_id only'}**
 
-## 4. 清理结果摘要
+## 4. Summary
 
 | Metric | Value |
 |---|---:|
-| 原始读取记录数 | {stats.raw_records:,} |
-| 清理后主表记录数 | {stats.final_records:,} |
-| 多版本 set_id 相关记录数 | {stats.multi_version_related_records:,} |
-| 日期范围 | {stats.min_date} to {stats.max_date} |
-| 有 openfda 注释比例 | {bool_pct('has_openfda')}% |
-| 有 boxed warning 比例 | {bool_pct('has_boxed_warning')}% |
-| 有 adverse reactions 比例 | {bool_pct('has_adverse_reactions')}% |
-| 有 drug interactions 比例 | {bool_pct('has_drug_interactions')}% |
-| 有 pregnancy info 比例 | {bool_pct('has_pregnancy_info')}% |
-| 有 OTC consumer fields 比例 | {bool_pct('has_otc_consumer_fields')}% |
+| Raw records read | {stats.raw_records:,} |
+| Records in final master table | {stats.final_records:,} |
+| Records from multi-version set_ids | {stats.multi_version_related_records:,} |
+| Date range | {stats.min_date} to {stats.max_date} |
+| Has openfda annotation | {bool_pct('has_openfda')}% |
+| Has boxed warning | {bool_pct('has_boxed_warning')}% |
+| Has adverse reactions | {bool_pct('has_adverse_reactions')}% |
+| Has drug interactions | {bool_pct('has_drug_interactions')}% |
+| Has pregnancy info | {bool_pct('has_pregnancy_info')}% |
+| Has OTC consumer fields | {bool_pct('has_otc_consumer_fields')}% |
 
 ## 5. Product Type Top 10
 
@@ -564,7 +566,7 @@ def write_report(path: Path, stats: Stats, keep_all_versions: bool) -> None:
 
 {markdown_table(route_rows, ['route', 'count'])}
 
-## 7. 输出文件
+## 7. Output files
 
 ```text
 data/processed/
@@ -574,30 +576,33 @@ data/processed/
 └── source_file_summary.csv
 ```
 
-## 8. 如何再次运行
+## 8. Re-running
 
-默认只保留最新版本：
+Keep latest version only (default):
 
 ```bash
-python clean_openfda_drug_label_bulk_streaming.py \\
-    --input-dir data/raw \\
-    --output-dir data/processed \\
-    --report reports/cleaning_result_report.md
+python pipeline/clean_openfda_streaming.py \\
+    --input-dir data/processed/OpenFDA/data/raw \\
+    --output-dir data/processed/OpenFDA/data/processed \\
+    --report data/processed/reports/openfda_cleaning_report.md
 ```
 
-保留所有历史版本：
+Keep all historical versions:
 
 ```bash
-python clean_openfda_drug_label_bulk_streaming.py \\
-    --input-dir data/raw \\
-    --output-dir data/processed \\
-    --report reports/cleaning_result_report.md \\
+python pipeline/clean_openfda_streaming.py \\
+    --input-dir data/processed/OpenFDA/data/raw \\
+    --output-dir data/processed/OpenFDA/data/processed \\
+    --report data/processed/reports/openfda_cleaning_report.md \\
     --keep-all-versions
 ```
 
-## 9. 数据限制
+## 9. Limitations
 
-openFDA Drug Labeling 是半结构化药品标签文本数据。清理过程只做格式标准化、版本去重、字段展开、覆盖率统计和质量标记，不改变原始标签的医学含义。该数据不应被用于医疗决策。
+openFDA Drug Labeling is semi-structured pharmaceutical label text. This pipeline only
+normalizes formats, deduplicates versions, flattens fields, and flags quality issues —
+it does not alter the medical meaning of any label. This data must not be used for
+clinical decision-making.
 """
     path.write_text(text, encoding="utf-8")
 

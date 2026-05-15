@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // 所有 /api 请求转发到后端，浏览器不再跨域
+      // Proxy all /api requests to the backend (avoids CORS in dev)
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,

@@ -1,10 +1,10 @@
 <!--
-  AnatomyHero.vue — 首页装饰用解剖人体（v3.5 新）
+  AnatomyHero.vue — Decorative anatomy figure for the homepage (v3.5)
 
-  - 非交互，纯视觉
-  - 心跳 / 呼吸 / 血流粒子动画
-  - 与 AnatomyBody.vue 同一风格语言，仅作背景层
-  - prefers-reduced-motion 支持
+  - Non-interactive, purely visual
+  - Heartbeat / breathing / blood-flow particle animations
+  - Shares the same visual language as AnatomyBody.vue; used as a background layer
+  - Respects prefers-reduced-motion
 -->
 <template>
   <div class="hero-anatomy" :class="{ 'reduce-motion': reduceMotion }">
