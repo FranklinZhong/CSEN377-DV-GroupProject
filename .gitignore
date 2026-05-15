@@ -61,5 +61,4 @@ dist/
 *.swo
 *~
 
-# ── Jupyter (personal study notes, not project code) ─────────────────────────
-AIDSE课程笔记汇总.ipynb
+
