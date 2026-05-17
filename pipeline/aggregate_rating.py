@@ -21,18 +21,27 @@ def aggregate(conn: sqlite3.Connection) -> dict[str, int]:
         "SELECT COUNT(*) FROM drugs WHERE overall_rating IS NOT NULL"
     ).fetchone()[0]
 
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_drug_rating ON reviews(drug_id, rating)")
+    cur.execute("DROP TABLE IF EXISTS temp.rating_avg")
+    cur.execute(
+        """
+        CREATE TEMP TABLE rating_avg AS
+        SELECT drug_id, ROUND(AVG(rating), 2) AS overall_rating
+        FROM reviews
+        WHERE rating IS NOT NULL
+        GROUP BY drug_id
+        """
+    )
+    cur.execute("CREATE INDEX IF NOT EXISTS temp.idx_rating_avg_drug ON rating_avg(drug_id)")
     cur.execute(
         """
         UPDATE drugs
         SET overall_rating = (
-            SELECT ROUND(AVG(r.rating), 2)
-            FROM reviews r
-            WHERE r.drug_id = drugs.id
-              AND r.rating IS NOT NULL
+            SELECT overall_rating
+            FROM rating_avg
+            WHERE rating_avg.drug_id = drugs.id
         )
-        WHERE id IN (
-            SELECT DISTINCT drug_id FROM reviews WHERE rating IS NOT NULL
-        )
+        WHERE id IN (SELECT drug_id FROM rating_avg)
         """
     )
     updated = cur.rowcount

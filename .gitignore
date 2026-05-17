@@ -30,6 +30,9 @@ var/
 wheels/
 *.so
 
+# Local toolchains downloaded for WSL/dev setup
+.tools/
+
 # Virtual environments
 venv/
 .venv/

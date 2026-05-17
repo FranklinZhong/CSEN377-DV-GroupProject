@@ -342,14 +342,23 @@ def load_faers(conn: sqlite3.Connection, id_map: dict[str, int]):
         fq_rows,
     )
 
-    # normalized_frequency (per drug per quarter, 0-1)
+    # normalized_frequency (per drug per quarter, 0-1). Pre-compute maxima so
+    # SQLite does not repeatedly scan faers_quarterly for every row.
+    conn.execute("DROP TABLE IF EXISTS temp.fq_max")
     conn.execute("""
-        UPDATE faers_quarterly SET normalized_frequency = (
-            CAST(report_count AS REAL) / (
-                SELECT MAX(report_count) FROM faers_quarterly fq2
-                WHERE fq2.drug_id = faers_quarterly.drug_id
-                  AND fq2.quarter = faers_quarterly.quarter
-            )
+        CREATE TEMP TABLE fq_max AS
+        SELECT drug_id, quarter, MAX(report_count) AS max_count
+        FROM faers_quarterly
+        GROUP BY drug_id, quarter
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS temp.idx_fq_max ON fq_max(drug_id, quarter)")
+    conn.execute("""
+        UPDATE faers_quarterly
+        SET normalized_frequency = CAST(report_count AS REAL) / (
+            SELECT max_count
+            FROM fq_max
+            WHERE fq_max.drug_id = faers_quarterly.drug_id
+              AND fq_max.quarter = faers_quarterly.quarter
         )
     """)
 
@@ -430,16 +439,19 @@ def load_webmd(conn: sqlite3.Connection, id_map: dict[str, int]):
         .reset_index()
     )
 
-    # top_terms: most frequent keywords within this cluster
-    def top_terms_for_cluster(sub_df, body_part, n=5):
+    # top_terms: compute once per cluster while scanning exploded reviews.
+    cluster_terms: dict[tuple[int, str, str], defaultdict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for drug_id, body_part, sentiment, review in df_exploded[
+        ["drug_id", "body_parts", "sentiment", "Reviews"]
+    ].itertuples(index=False, name=None):
         kws = BODY_PART_KEYWORDS.get(body_part, [])
-        counts = defaultdict(int)
-        for txt in sub_df["Reviews"]:
-            t = str(txt).lower()
-            for kw in kws:
-                if kw in t:
-                    counts[kw] += 1
-        return [k for k, _ in sorted(counts.items(), key=lambda x: -x[1])[:n]]
+        if not kws:
+            continue
+        text = str(review).lower()
+        counts = cluster_terms[(int(drug_id), body_part, sentiment)]
+        for kw in kws:
+            if kw in text:
+                counts[kw] += 1
 
     cluster_rows = []
     for _, row in clusters.iterrows():
@@ -449,12 +461,8 @@ def load_webmd(conn: sqlite3.Connection, id_map: dict[str, int]):
         count     = int(row["review_count"])
         quotes    = [q[:200] for q in row["sample_quotes"]]
 
-        sub = df_exploded[
-            (df_exploded["drug_id"] == drug_id) &
-            (df_exploded["body_parts"] == body_part) &
-            (df_exploded["sentiment"] == sentiment)
-        ]
-        terms = top_terms_for_cluster(sub, body_part)
+        term_counts = cluster_terms.get((drug_id, body_part, sentiment), {})
+        terms = [k for k, _ in sorted(term_counts.items(), key=lambda x: -x[1])[:5]]
 
         cluster_rows.append((
             drug_id, body_part, sentiment, count,
