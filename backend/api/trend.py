@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Path, Depends, HTTPException
+from fastapi import APIRouter, Path, HTTPException
 import sqlite3
 
-from ..db import get_connection
+from ..db import db_session
 from ..schemas.common import ok, err
 from ..services.faers_service import get_trend_data
 from ..services.drug_service import get_drug_by_id
@@ -9,19 +9,15 @@ from ..services.drug_service import get_drug_by_id
 router = APIRouter(prefix="/api/drugs", tags=["trend"])
 
 
-def _conn():
-    conn = get_connection()
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 @router.get("/{drug_id}/trend")
 def drug_trend(
     drug_id: int = Path(..., gt=0),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _drug_trend(drug_id, conn)
+
+
+def _drug_trend(drug_id: int, conn: sqlite3.Connection):
     """
     GET /api/drugs/{drug_id}/trend
 

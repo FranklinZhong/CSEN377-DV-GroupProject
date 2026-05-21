@@ -1,26 +1,22 @@
-from fastapi import APIRouter, Path, Query, Depends, HTTPException
+from fastapi import APIRouter, Path, Query, HTTPException
 import sqlite3
 
-from ..db import get_connection
+from ..db import db_session
 from ..schemas.common import ok, err
 from ..services.drug_service import get_drug_by_id, find_alt_drug_id
 
 router = APIRouter(prefix="/api/drugs", tags=["drugs"])
 
 
-def _conn():
-    conn = get_connection()
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 @router.get("/{drug_id}")
 def drug_summary(
     drug_id: int = Path(..., gt=0),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _drug_summary(drug_id, conn)
+
+
+def _drug_summary(drug_id: int, conn: sqlite3.Connection):
     """
     GET /api/drugs/{drug_id}
     Summary bar data: name, FDA status, indication summary, rating, risk level, data version.
@@ -79,8 +75,12 @@ def drug_summary(
 @router.get("/{drug_id}/overview")
 def drug_overview(
     drug_id: int = Path(..., gt=0),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _drug_overview(drug_id, conn)
+
+
+def _drug_overview(drug_id: int, conn: sqlite3.Connection):
     """
     GET /api/drugs/{drug_id}/overview  (v3.5)
     Drug Overview card: What it treats / How it works / Quick Facts / Key Indications.
@@ -178,8 +178,12 @@ def drug_overview(
 @router.get("/{drug_id}/benefits")
 def drug_benefits(
     drug_id: int = Path(..., gt=0),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _drug_benefits(drug_id, conn)
+
+
+def _drug_benefits(drug_id: int, conn: sqlite3.Connection):
     """
     GET /api/drugs/{drug_id}/benefits
     Vis 1 Benefits: FDA Drug Label indication → body_part mapping.
@@ -213,8 +217,12 @@ def drug_benefits(
 @router.get("/{drug_id}/sideeffects")
 def drug_side_effects(
     drug_id: int = Path(..., gt=0),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _drug_side_effects(drug_id, conn)
+
+
+def _drug_side_effects(drug_id: int, conn: sqlite3.Connection):
     """
     GET /api/drugs/{drug_id}/sideeffects
     Vis 1 Side Effects: FAERS adverse event → body_part mapping.
@@ -281,7 +289,33 @@ def drug_reviews_list(
     sort: str = Query("recent", description="recent | rating_asc | rating_desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    conn: sqlite3.Connection = Depends(_conn),
+):
+    with db_session() as conn:
+        return _drug_reviews_list(
+            drug_id,
+            body_part,
+            sentiment,
+            rating_min,
+            rating_max,
+            q,
+            sort,
+            page,
+            page_size,
+            conn,
+        )
+
+
+def _drug_reviews_list(
+    drug_id: int,
+    body_part: str,
+    sentiment: str,
+    rating_min: float,
+    rating_max: float,
+    q: str | None,
+    sort: str,
+    page: int,
+    page_size: int,
+    conn: sqlite3.Connection,
 ):
     """
     GET /api/drugs/{drug_id}/reviews/list  (v3.5)
@@ -363,8 +397,12 @@ def drug_reviews_list(
 @router.get("/{drug_id}/reviews")
 def drug_reviews(
     drug_id: int = Path(..., gt=0),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _drug_reviews(drug_id, conn)
+
+
+def _drug_reviews(drug_id: int, conn: sqlite3.Connection):
     """
     GET /api/drugs/{drug_id}/reviews
     Vis 3: WebMD reviews clustered by body_part (positive / negative / mixed / neutral).

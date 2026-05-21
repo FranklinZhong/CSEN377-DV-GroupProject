@@ -1,32 +1,24 @@
-from fastapi import APIRouter, Depends
-import sqlite3
+from fastapi import APIRouter
 from datetime import datetime
 
-from ..db import get_connection
+from ..db import db_session
 from ..schemas.common import ok
 
 router = APIRouter(tags=["health"])
 
 
-def _conn():
-    conn = get_connection()
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 @router.get("/api/health")
-def health_check(conn: sqlite3.Connection = Depends(_conn)):
+def health_check():
     """
     GET /api/health
     Returns service status and data version for the frontend summary bar.
     """
     try:
-        drug_count = conn.execute("SELECT COUNT(*) FROM drugs").fetchone()[0]
-        row = conn.execute(
-            "SELECT data_version, updated_at FROM drugs ORDER BY updated_at DESC LIMIT 1"
-        ).fetchone()
+        with db_session() as conn:
+            drug_count = conn.execute("SELECT COUNT(*) FROM drugs").fetchone()[0]
+            row = conn.execute(
+                "SELECT data_version, updated_at FROM drugs ORDER BY updated_at DESC LIMIT 1"
+            ).fetchone()
         data_version = row["data_version"] if row else "unknown"
         last_updated = row["updated_at"] if row else "unknown"
         db_ok = True

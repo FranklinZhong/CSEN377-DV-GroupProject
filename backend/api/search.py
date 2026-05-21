@@ -1,26 +1,22 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query
 import sqlite3
 
-from ..db import get_connection
+from ..db import db_session
 from ..schemas.common import ok, err
 from ..services.drug_service import search_drugs, fuzzy_search
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
-def _conn():
-    conn = get_connection()
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 @router.get("")
 def keyword_search(
     q: str = Query(..., min_length=1, description="Drug name query"),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _keyword_search(q, conn)
+
+
+def _keyword_search(q: str, conn: sqlite3.Connection):
     """
     GET /api/search?q=met
     Real-time autocomplete: prefix match with alias support.
@@ -35,8 +31,12 @@ def keyword_search(
 @router.get("/fuzzy")
 def fuzzy_search_endpoint(
     q: str = Query(..., min_length=1),
-    conn: sqlite3.Connection = Depends(_conn),
 ):
+    with db_session() as conn:
+        return _fuzzy_search_endpoint(q, conn)
+
+
+def _fuzzy_search_endpoint(q: str, conn: sqlite3.Connection):
     """
     GET /api/search/fuzzy?q=amoxcillin
     Spelling-error tolerant search; auto_redirect is always False.
@@ -53,7 +53,15 @@ def fuzzy_search_endpoint(
 def index_search(
     letter: str = Query(..., min_length=1, max_length=1),
     prefix: str | None = Query(None, min_length=2, max_length=2),
-    conn: sqlite3.Connection = Depends(_conn),
+):
+    with db_session() as conn:
+        return _index_search(letter, prefix, conn)
+
+
+def _index_search(
+    letter: str,
+    prefix: str | None,
+    conn: sqlite3.Connection,
 ):
     """
     GET /api/search/index?letter=M

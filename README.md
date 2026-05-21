@@ -44,6 +44,14 @@ python -m spacy download en_core_web_sm
 > **First-time setup only.** This downloads ~9 GB of raw data and builds `medinsight.db`.
 > Requires the [Kaggle CLI](https://www.kaggle.com/docs/api) configured with your API key.
 
+If you only need a small local dataset for testing the app, skip the download and run:
+
+```bash
+python scripts/create_sample_data.py
+```
+
+This creates a tiny synthetic `data/processed/medinsight.db` and sample FAERS CSV for the README drugs.
+
 ```bash
 bash scripts/setup_data.sh
 ```
