@@ -49,6 +49,58 @@ def fuzzy_search_endpoint(
     )
 
 
+@router.get("/by-body-part")
+def by_body_part(
+    part: str = Query(..., min_length=1),
+    conn: sqlite3.Connection = Depends(_conn),
+):
+    """
+    GET /api/search/by-body-part?part=heart
+    返回对指定身体部位有 benefit 效果的药物列表。
+    """
+    rows = conn.execute(
+        """
+        SELECT DISTINCT d.id, d.name, d.generic_name, d.indication_summary,
+            COALESCE(rv.review_count, 0) AS review_count
+        FROM effects e
+        JOIN drugs d ON d.id = e.drug_id
+        LEFT JOIN (
+            SELECT drug_id, COUNT(*) AS review_count FROM reviews GROUP BY drug_id
+        ) rv ON rv.drug_id = d.id
+        WHERE e.body_part = ? AND e.effect_type = 'benefit'
+        ORDER BY
+            CASE WHEN d.indication_summary IS NOT NULL AND d.indication_summary != '' THEN 0 ELSE 1 END,
+            COALESCE(rv.review_count, 0) DESC
+        LIMIT 50
+        """,
+        (part.lower(),),
+    ).fetchall()
+
+    def _quality(r):
+        if r["indication_summary"] and r["review_count"] >= 50:
+            return "full"
+        if r["indication_summary"]:
+            return "partial"
+        return "limited"
+
+    results = [
+        {
+            "drug_id":      r["id"],
+            "name":         r["name"],
+            "generic_name": r["generic_name"],
+            "main_use":     r["indication_summary"],
+            "review_count": r["review_count"],
+            "data_quality": _quality(r),
+        }
+        for r in rows
+    ]
+    return ok(
+        {"part": part, "results": results, "empty": len(results) == 0},
+        source="SQLite",
+        confidence="high",
+    )
+
+
 @router.get("/index")
 def index_search(
     letter: str = Query(..., min_length=1, max_length=1),

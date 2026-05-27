@@ -151,6 +151,11 @@ export const api = {
       params: { letter, ...(prefix && { prefix }) },
     }),
 
+  searchByBodyPart: (part: string) =>
+    client.get<ApiResponse<{ part: string; results: DrugResult[]; empty: boolean }>>(
+      '/api/search/by-body-part', { params: { part } }
+    ),
+
   // 药品详情
   getDrug: (id: number) =>
     client.get<ApiResponse<DrugSummary>>(`/api/drugs/${id}`),

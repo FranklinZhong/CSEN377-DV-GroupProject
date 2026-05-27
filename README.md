@@ -128,7 +128,16 @@ Open [http://localhost:5173](http://localhost:5173)
 | Sprint 1 | 5/1–5/7  | ✅ Data pipeline + SQLite DB |
 | Sprint 2 | 5/8–5/14 | ✅ FastAPI backend + Vue scaffold |
 | Sprint 3 | 5/15–5/21 | ✅ All three visualizations |
-| Sprint 4 | 5/22–5/28 | ✅ UI polish + write-up + video |
+| Sprint 4 | 5/22–5/28 | 🔧 UI polish ✅ · write-up ⬜ · video ⬜ |
+
+## Recent Changes
+
+| Date | Change |
+|------|--------|
+| 2026-05-26 | Fixed layout jumping in `TrendAnimation.vue` during playback — replaced `<TransitionGroup>` with plain `<div v-for>` and added `mode="out-in"` to narrative transition |
+| 2026-05-24 | Full UI overhaul: holographic anatomy hero (homepage), interactive anatomy body (detail page), hover-card height stabilization |
+| 2026-05-24 | Added "About the Data" modal on homepage with three data-source cards |
+| 2026-05-23 | SQLite concurrency fix (`check_same_thread=False`, `busy_timeout=5000`) |
 
 ---
 

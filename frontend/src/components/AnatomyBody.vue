@@ -205,8 +205,8 @@
               stroke="#ef4444" stroke-width="2" fill="none" class="ab-vessel"/>
         <path d="M214 272 Q214 310 214 358 Q212 392 210 428"
               stroke="#3b82f6" stroke-width="1.5" fill="none" opacity="0.6"/>
-        <path d="M198 188 Q194 166 194 141" stroke="#ef4444" stroke-width="1.2" fill="none" opacity="0.6"/>
-        <path d="M222 188 Q226 166 226 141" stroke="#ef4444" stroke-width="1.2" fill="none" opacity="0.6"/>
+        <path d="M198 188 Q194 166 194 116" stroke="#ef4444" stroke-width="1.2" fill="none" opacity="0.6"/>
+        <path d="M222 188 Q226 166 226 116" stroke="#ef4444" stroke-width="1.2" fill="none" opacity="0.6"/>
         <path d="M178 194 Q158 240 148 308 Q144 344 148 378" stroke="#ef4444" stroke-width="1" fill="none" opacity="0.4"/>
         <path d="M242 194 Q262 240 272 308 Q276 344 272 378" stroke="#ef4444" stroke-width="1" fill="none" opacity="0.4"/>
       </g>
@@ -217,56 +217,56 @@
         <!-- BRAIN: dome with gyri folds + hemisphere split -->
         <g v-bind="organHandlers('brain')" class="organ-group" :class="organClass('brain')">
           <!-- Main brain dome -->
-          <path d="M174 100 Q174 68 210 64 Q246 68 246 100 Q246 132 210 136 Q174 132 174 100Z"
+          <path d="M174 75 Q174 43 210 39 Q246 43 246 75 Q246 107 210 111 Q174 107 174 75Z"
                 fill="url(#ab-brain)"/>
           <!-- Gyri (sulcal folds) -->
-          <path d="M179 88 Q192 82 206 88 Q218 82 230 88" stroke="#c4b5fd" stroke-width="1" fill="none" opacity="0.55"/>
-          <path d="M177 101 Q192 95 208 101 Q222 95 236 101" stroke="#c4b5fd" stroke-width="1" fill="none" opacity="0.55"/>
-          <path d="M179 114 Q192 108 208 114 Q220 108 234 114" stroke="#c4b5fd" stroke-width="0.9" fill="none" opacity="0.45"/>
+          <path d="M179 63 Q192 57 206 63 Q218 57 230 63" stroke="#c4b5fd" stroke-width="1" fill="none" opacity="0.55"/>
+          <path d="M177 76 Q192 70 208 76 Q222 70 236 76" stroke="#c4b5fd" stroke-width="1" fill="none" opacity="0.55"/>
+          <path d="M179 89 Q192 83 208 89 Q220 83 234 89" stroke="#c4b5fd" stroke-width="0.9" fill="none" opacity="0.45"/>
           <!-- Hemisphere split -->
-          <line x1="210" y1="65" x2="210" y2="135" stroke="#ddd6fe" stroke-width="0.8" opacity="0.4"/>
+          <line x1="210" y1="40" x2="210" y2="110" stroke="#ddd6fe" stroke-width="0.8" opacity="0.4"/>
           <!-- Cerebellum hint -->
-          <path d="M186 128 Q198 134 210 136 Q222 134 234 128"
+          <path d="M186 103 Q198 109 210 111 Q222 109 234 103"
                 stroke="#a78bfa" stroke-width="1.2" fill="none" opacity="0.4"/>
         </g>
 
         <!-- EYES: realistic with iris + pupil -->
         <g v-bind="organHandlers('eye')" class="organ-group" :class="organClass('eye')">
-          <ellipse cx="190" cy="116" rx="7" ry="4.5" fill="#dbeafe" opacity="0.9"/>
-          <ellipse cx="190" cy="116" rx="3.5" ry="3.5" fill="#1e40af" opacity="0.8"/>
-          <circle  cx="191.5" cy="115" r="1.2" fill="#e0f2fe" opacity="0.9"/>
-          <ellipse cx="230" cy="116" rx="7" ry="4.5" fill="#dbeafe" opacity="0.9"/>
-          <ellipse cx="230" cy="116" rx="3.5" ry="3.5" fill="#1e40af" opacity="0.8"/>
-          <circle  cx="231.5" cy="115" r="1.2" fill="#e0f2fe" opacity="0.9"/>
+          <ellipse cx="190" cy="67" rx="7" ry="4.5" fill="#dbeafe" opacity="0.9"/>
+          <ellipse cx="190" cy="67" rx="3.5" ry="3.5" fill="#1e40af" opacity="0.8"/>
+          <circle  cx="191.5" cy="66" r="1.2" fill="#e0f2fe" opacity="0.9"/>
+          <ellipse cx="230" cy="67" rx="7" ry="4.5" fill="#dbeafe" opacity="0.9"/>
+          <ellipse cx="230" cy="67" rx="3.5" ry="3.5" fill="#1e40af" opacity="0.8"/>
+          <circle  cx="231.5" cy="66" r="1.2" fill="#e0f2fe" opacity="0.9"/>
         </g>
 
         <!-- EAR: at sides of head (~x=174-180 left, x=240-246 right) -->
         <g v-bind="organHandlers('ear')" class="organ-group" :class="organClass('ear')">
           <!-- Left ear -->
-          <path d="M175 103 Q169 107 169 114 Q169 121 175 124 Q178 124 179 119 Q177 113 178 108 Q178 104 175 103Z"
+          <path d="M175 65 Q169 69 169 76 Q169 83 175 86 Q178 86 179 81 Q177 75 178 70 Q178 66 175 65Z"
                 fill="none" :stroke="organStroke('ear')" stroke-width="2" stroke-linecap="round"/>
           <!-- Right ear -->
-          <path d="M245 103 Q251 107 251 114 Q251 121 245 124 Q242 124 241 119 Q243 113 242 108 Q242 104 245 103Z"
+          <path d="M245 65 Q251 69 251 76 Q251 83 245 86 Q242 86 241 81 Q243 75 242 70 Q242 66 245 65Z"
                 fill="none" :stroke="organStroke('ear')" stroke-width="2" stroke-linecap="round"/>
         </g>
 
         <!-- HEART: anatomically shaped with 4-chamber hint + aortic arch -->
         <g v-bind="organHandlers('heart')" class="organ-group ab-heart-beat" :class="organClass('heart')">
           <!-- Heart body: 2 atria on top, apex pointing left-down -->
-          <path d="M197 248
-                   C 188 236, 172 242, 175 260
-                   C 178 275, 192 286, 205 296
-                   C 212 289, 228 278, 232 262
-                   C 236 246, 222 238, 213 248
-                   C 210 243, 202 243, 197 248Z"
+          <path d="M212 233
+                   C 203 221, 187 227, 190 245
+                   C 193 260, 207 271, 220 281
+                   C 227 274, 243 263, 247 247
+                   C 251 231, 237 223, 228 233
+                   C 225 228, 217 228, 212 233Z"
                 fill="url(#ab-heart)"/>
           <!-- Inter-ventricular groove hint -->
-          <path d="M206 262 Q207 278 205 294" stroke="#fda4af" stroke-width="0.8" fill="none" opacity="0.5"/>
+          <path d="M221 247 Q222 263 220 279" stroke="#fda4af" stroke-width="0.8" fill="none" opacity="0.5"/>
           <!-- Aortic arch -->
-          <path d="M213 248 Q220 234 224 226 Q230 220 238 222"
+          <path d="M228 233 Q235 219 239 211 Q245 205 253 207"
                 stroke="#ef4444" stroke-width="1.5" fill="none" opacity="0.6"/>
           <!-- Pulmonary trunk -->
-          <path d="M204 248 Q200 235 198 228 Q195 220 186 218"
+          <path d="M219 233 Q215 220 213 213 Q210 205 201 203"
                 stroke="#60a5fa" stroke-width="1.2" fill="none" opacity="0.55"/>
         </g>
 
@@ -293,35 +293,35 @@
 
         <!-- LIVER: right-biased wedge within torso boundary (x=178-252) -->
         <g v-bind="organHandlers('liver')" class="organ-group" :class="organClass('liver')">
-          <path d="M180 318 Q175 314 178 308 Q206 304 244 308 Q252 312 252 326 Q250 346 240 352 Q224 357 210 355 Q194 352 184 342 Q178 334 180 318Z"
+          <path d="M180 300 Q175 296 178 290 Q206 286 244 290 Q252 294 252 308 Q250 328 240 334 Q224 339 210 337 Q194 334 184 324 Q178 316 180 300Z"
                 fill="url(#ab-liver)"/>
           <!-- Lobule texture -->
-          <path d="M192 326 Q220 321 246 326" stroke="#fde68a" stroke-width="0.7" fill="none" opacity="0.35"/>
-          <path d="M190 338 Q218 333 244 338" stroke="#fde68a" stroke-width="0.7" fill="none" opacity="0.3"/>
+          <path d="M192 308 Q220 303 246 308" stroke="#fde68a" stroke-width="0.7" fill="none" opacity="0.35"/>
+          <path d="M190 320 Q218 315 244 320" stroke="#fde68a" stroke-width="0.7" fill="none" opacity="0.3"/>
           <!-- Gallbladder -->
-          <ellipse cx="232" cy="360" rx="8" ry="6" fill="#fbbf24" opacity="0.45"/>
+          <ellipse cx="232" cy="342" rx="8" ry="6" fill="#fbbf24" opacity="0.45"/>
         </g>
 
         <!-- STOMACH: J-shape within torso (x=166-214) -->
         <g v-bind="organHandlers('stomach')" class="organ-group" :class="organClass('stomach')">
-          <path d="M177 320 Q169 323 167 336 Q166 350 169 364 Q173 378 184 381 Q195 382 205 374 Q214 366 213 353 Q211 341 206 336 Q198 320 186 318 Q181 317 177 320Z"
+          <path d="M177 300 Q169 303 167 316 Q166 330 169 344 Q173 358 184 361 Q195 362 205 354 Q214 346 213 333 Q211 321 206 316 Q198 300 186 298 Q181 297 177 300Z"
                 fill="url(#ab-stomach)"/>
-          <path d="M173 338 Q185 334 200 340" stroke="#fdba74" stroke-width="0.8" fill="none" opacity="0.4"/>
-          <path d="M171 350 Q184 346 200 352" stroke="#fdba74" stroke-width="0.8" fill="none" opacity="0.35"/>
-          <path d="M210 353 Q215 353 218 357" stroke="#fb923c" stroke-width="1.2" fill="none" opacity="0.6"/>
+          <path d="M173 318 Q185 314 200 320" stroke="#fdba74" stroke-width="0.8" fill="none" opacity="0.4"/>
+          <path d="M171 330 Q184 326 200 332" stroke="#fdba74" stroke-width="0.8" fill="none" opacity="0.35"/>
+          <path d="M210 333 Q215 333 218 337" stroke="#fb923c" stroke-width="1.2" fill="none" opacity="0.6"/>
         </g>
 
         <!-- KIDNEYS: bean shapes within lower abdomen (left x=172-200, right x=220-248) -->
         <g v-bind="organHandlers('kidney')" class="organ-group" :class="organClass('kidney')">
           <!-- Left kidney: hilum notch faces right (toward spine) -->
-          <path d="M182 370 Q172 372 170 383 Q170 396 180 403 Q190 407 198 399 Q202 393 200 383 Q198 373 190 369 Q186 368 182 370Z"
+          <path d="M182 292 Q172 294 170 305 Q170 318 180 325 Q190 329 198 321 Q202 315 200 305 Q198 295 190 291 Q186 290 182 292Z"
                 fill="url(#ab-kidney)"/>
-          <path d="M198 384 Q200 384 198 390" stroke="#c4b5fd" stroke-width="1.2" fill="none" opacity="0.55"/>
+          <path d="M198 306 Q200 306 198 312" stroke="#c4b5fd" stroke-width="1.2" fill="none" opacity="0.55"/>
 
           <!-- Right kidney: hilum notch faces left (toward spine) -->
-          <path d="M238 370 Q248 372 250 383 Q250 396 240 403 Q230 407 222 399 Q218 393 220 383 Q222 373 230 369 Q234 368 238 370Z"
+          <path d="M238 292 Q248 294 250 305 Q250 318 240 325 Q230 329 222 321 Q218 315 220 305 Q222 295 230 291 Q234 290 238 292Z"
                 fill="url(#ab-kidney)"/>
-          <path d="M222 384 Q220 384 222 390" stroke="#c4b5fd" stroke-width="1.2" fill="none" opacity="0.55"/>
+          <path d="M222 306 Q220 306 222 312" stroke="#c4b5fd" stroke-width="1.2" fill="none" opacity="0.55"/>
         </g>
 
         <!-- SKIN: holographic outline ring (whole body outline as "skin" layer) -->
@@ -380,12 +380,12 @@
         <!-- MUSCLE: quadriceps groups on both thighs -->
         <g v-bind="organHandlers('muscle')" class="organ-group" :class="organClass('muscle')">
           <!-- Left thigh front -->
-          <path d="M185 500 Q178 510 177 540 Q178 570 185 582 Q192 586 196 580
-                   Q200 560 200 530 Q199 510 193 500Z"
+          <path d="M187 500 Q181 508 180 530 Q181 552 187 562 Q193 565 197 560
+                   Q200 544 200 522 Q199 508 194 500Z"
                 fill="url(#ab-muscle)"/>
           <!-- Right thigh front -->
-          <path d="M235 500 Q242 510 243 540 Q242 570 235 582 Q228 586 224 580
-                   Q220 560 220 530 Q221 510 227 500Z"
+          <path d="M233 500 Q239 508 240 530 Q239 552 233 562 Q227 565 223 560
+                   Q220 544 220 522 Q221 508 226 500Z"
                 fill="url(#ab-muscle)"/>
         </g>
 
@@ -408,36 +408,36 @@
         <!-- ENDOCRINE: pituitary + thyroid + adrenals (updated to match new kidney tops) + pancreas -->
         <g v-bind="organHandlers('endocrine')" class="organ-group" :class="organClass('endocrine')">
           <!-- Pituitary (just below brain base) -->
-          <circle cx="210" cy="138" r="4" fill="url(#ab-brain)" opacity="0.8"/>
+          <circle cx="210" cy="113" r="4" fill="url(#ab-brain)" opacity="0.8"/>
           <!-- Thyroid (butterfly, neck x=200-220) -->
           <path d="M200 160 Q205 155 210 158 Q215 155 220 160 Q218 170 210 172 Q202 170 200 160Z"
                 fill="url(#ab-brain)" opacity="0.7"/>
-          <!-- Adrenal caps on new kidney tops (left ~x=188-196, right ~x=224-232) -->
-          <path d="M188 368 Q192 361 196 368Z" fill="url(#ab-brain)" opacity="0.7"/>
-          <path d="M232 368 Q228 361 224 368Z" fill="url(#ab-brain)" opacity="0.7"/>
+          <!-- Adrenal caps on kidney tops (left ~x=188-196, right ~x=224-232) -->
+          <path d="M188 290 Q192 283 196 290Z" fill="url(#ab-brain)" opacity="0.7"/>
+          <path d="M232 290 Q228 283 224 290Z" fill="url(#ab-brain)" opacity="0.7"/>
           <!-- Pancreas -->
-          <path d="M198 362 Q218 358 236 362 Q240 368 236 372 Q218 368 198 372 Q194 368 198 362Z"
+          <path d="M198 316 Q218 312 236 316 Q240 322 236 326 Q218 322 198 326 Q194 322 198 316Z"
                 fill="url(#ab-brain)" opacity="0.55"/>
         </g>
 
         <!-- REPRODUCTIVE: uterus + bladder -->
         <g v-bind="organHandlers('reproductive')" class="organ-group" :class="organClass('reproductive')">
           <!-- Bladder (dome-shaped) -->
-          <path d="M196 470 Q186 472 184 482 Q184 494 196 498
-                   Q210 500 224 498 Q236 494 236 482 Q234 472 224 470
-                   Q212 467 196 470Z"
+          <path d="M198 442 Q189 444 187 452 Q187 462 198 466
+                   Q210 468 222 466 Q233 462 233 452 Q231 444 222 442
+                   Q212 439 198 442Z"
                 fill="url(#ab-stomach)" opacity="0.6"/>
           <!-- Uterus (pear, slightly above bladder) -->
-          <path d="M204 454 Q198 454 196 460 Q196 468 204 470
-                   Q210 471 216 470 Q224 468 224 460 Q222 454 216 454
-                   Q210 452 204 454Z"
+          <path d="M205 428 Q200 428 198 433 Q198 440 205 442
+                   Q210 443 215 442 Q222 440 222 433 Q220 428 215 428
+                   Q210 426 205 428Z"
                 fill="url(#ab-stomach)" opacity="0.5"/>
         </g>
 
         <!-- IMMUNE: spleen (within body boundary) + cervical + axillary + inguinal nodes -->
         <g v-bind="organHandlers('immune')" class="organ-group" :class="organClass('immune')">
           <!-- Spleen (upper-left abdomen, x=168-188, within body boundary) -->
-          <path d="M175 302 Q168 306 168 318 Q168 328 175 332 Q184 332 188 324 Q188 312 183 306 Q180 300 175 302Z"
+          <path d="M175 284 Q168 288 168 300 Q168 310 175 314 Q184 314 188 306 Q188 294 183 288 Q180 282 175 284Z"
                 fill="#a78bfa" opacity="0.65"/>
           <!-- Cervical nodes (neck, x=196-224) -->
           <circle cx="196" cy="160" r="4" fill="#a78bfa" opacity="0.6"/>
@@ -446,39 +446,14 @@
           <circle cx="152" cy="210" r="4" fill="#a78bfa" opacity="0.55"/>
           <circle cx="268" cy="210" r="4" fill="#a78bfa" opacity="0.55"/>
           <!-- Inguinal nodes (groin) -->
-          <circle cx="185" cy="468" r="4" fill="#a78bfa" opacity="0.55"/>
-          <circle cx="235" cy="468" r="4" fill="#a78bfa" opacity="0.55"/>
+          <circle cx="185" cy="444" r="4" fill="#a78bfa" opacity="0.55"/>
+          <circle cx="235" cy="444" r="4" fill="#a78bfa" opacity="0.55"/>
         </g>
 
       </g>
 
     </svg>
 
-    <!-- Organ hover info panel (fixed height, no layout shift) -->
-    <div class="hover-panel">
-      <template v-if="hovered">
-        <span class="hp-dot" :style="{ background: hoveredColor }"></span>
-        <span class="hp-name">{{ bodyPartLabel(hovered) }}</span>
-        <span class="hp-effects" v-if="effectsAt(hovered).length">
-          — {{ effectsAt(hovered).length }} effect{{ effectsAt(hovered).length > 1 ? 's' : '' }}
-        </span>
-      </template>
-      <span v-else class="hp-hint">Hover an organ to explore</span>
-    </div>
-
-    <!-- Legend -->
-    <div class="legend">
-      <span class="leg" v-if="viewMode !== 'side_effects'">
-        <i class="leg-dot benefit"></i> Benefit
-      </span>
-      <span class="leg" v-if="viewMode !== 'benefits'">
-        <i class="leg-dot side"></i> Side Effect
-      </span>
-      <span class="leg" v-if="viewMode === 'both'">
-        <i class="leg-dot both"></i> Both
-      </span>
-      <span class="leg leg-meta">{{ effectMap.size }} regions affected</span>
-    </div>
   </div>
 </template>
 
@@ -580,6 +555,9 @@ function bodyPartLabel(p: string): string {
   align-items: center;
   gap: 12px;
   user-select: none;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* ── Toggle ── */
@@ -601,9 +579,10 @@ function bodyPartLabel(p: string): string {
 
 /* ── SVG ── */
 .anatomy-svg {
-  width: 100%;
-  max-width: 300px;
-  height: auto;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
   display: block;
   filter: drop-shadow(0 0 30px rgba(14,165,233,0.18));
 }
@@ -615,9 +594,9 @@ function bodyPartLabel(p: string): string {
   50%     { opacity: 0.9; }
 }
 
-/* Heart beat — origin at heart center (199, 272) in 420×780 space */
+/* Heart beat — origin at heart center (220, 257) in 420×780 space */
 .ab-heart-beat {
-  transform-origin: 205px 272px;
+  transform-origin: 220px 257px;
   animation: ab-heart 1.15s ease-in-out infinite;
 }
 @keyframes ab-heart {

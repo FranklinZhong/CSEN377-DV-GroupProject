@@ -1,43 +1,48 @@
 <!--
-  ReviewList.vue — 真实评论分页查看器（v3.5）
-
-  props:
-    drugId       药品 id
-    initialBodyPart  默认过滤的 body_part（'all' 或具体如 'stomach'）
-    initialSentiment 默认情感过滤
-
-  调用 /api/drugs/{id}/reviews/list 分页拉数据
+  ReviewList.vue — 真实评论分页查看器（v4.0）
+  - 全自定义深色主题，移除 Element Plus 依赖
+  - 搜索 + 排序同行；情感改为彩色 pill 切换按钮
 -->
 <template>
   <div class="rl-wrap">
-    <!-- Filters bar -->
+
+    <!-- ── Filter bar ── -->
     <div class="rl-filters">
-      <el-input
-        v-model="qInput"
-        size="small"
-        clearable
-        placeholder="Search keywords..."
-        class="rl-search"
-        @input="debounceSearch"
-      >
-        <template #prefix>🔍</template>
-      </el-input>
+      <div class="rl-search-row">
+        <div class="rl-input-wrap">
+          <span class="rl-search-icon">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+              <circle cx="8.5" cy="8.5" r="5.75" stroke="#64748b" stroke-width="1.8"/>
+              <line x1="13" y1="13" x2="18" y2="18" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <input
+            v-model="qInput"
+            class="rl-input"
+            type="text"
+            placeholder="Search keywords..."
+            @input="debounceSearch"
+          />
+          <button v-if="qInput" class="rl-clear-btn" @click="clearSearch">✕</button>
+        </div>
 
-      <el-select v-model="sentiment" size="small" class="rl-select"
-                 @change="reload(1)">
-        <el-option label="All sentiments" value="all" />
-        <el-option label="😞 Negative" value="negative" />
-        <el-option label="😐 Mixed"    value="mixed" />
-        <el-option label="😊 Positive" value="positive" />
-        <el-option label="Neutral"     value="neutral" />
-      </el-select>
+        <select v-model="sort" class="rl-sort" @change="reload(1)">
+          <option value="recent">Most Recent</option>
+          <option value="rating_desc">Highest Rated</option>
+          <option value="rating_asc">Lowest Rated</option>
+        </select>
+      </div>
 
-      <el-select v-model="sort" size="small" class="rl-select"
-                 @change="reload(1)">
-        <el-option label="Most Recent"   value="recent" />
-        <el-option label="Highest Rated" value="rating_desc" />
-        <el-option label="Lowest Rated"  value="rating_asc" />
-      </el-select>
+      <!-- Sentiment pills -->
+      <div class="rl-pills">
+        <button
+          v-for="opt in sentimentOptions"
+          :key="opt.value"
+          :class="['rl-pill', { active: sentiment === opt.value }]"
+          :style="sentiment === opt.value ? { borderColor: opt.color, color: opt.color, background: opt.bg } : {}"
+          @click="setSentiment(opt.value)"
+        >{{ opt.label }}</button>
+      </div>
     </div>
 
     <!-- Stats summary -->
@@ -50,7 +55,7 @@
 
     <!-- Loading -->
     <div v-if="loading" class="rl-state">
-      <el-skeleton :rows="3" animated />
+      <div class="rl-skeleton" v-for="i in 3" :key="i" />
     </div>
 
     <!-- Empty -->
@@ -78,22 +83,16 @@
         </header>
         <p class="rl-text">{{ r.review_text }}</p>
         <footer class="rl-card-foot" v-if="r.body_parts.length">
-          <span v-for="bp in r.body_parts" :key="bp" class="rl-bp-tag">
-            {{ bp }}
-          </span>
+          <span v-for="bp in r.body_parts" :key="bp" class="rl-bp-tag">{{ bp }}</span>
         </footer>
       </article>
     </div>
 
     <!-- Pagination -->
     <div v-if="totalPages > 1" class="rl-pager">
-      <el-button
-        size="small" plain :disabled="page <= 1" @click="reload(page - 1)"
-      >◀ Prev</el-button>
+      <button class="rl-page-btn" :disabled="page <= 1" @click="reload(page - 1)">◀ Prev</button>
       <span class="rl-page-info">Page {{ page }} / {{ totalPages }}</span>
-      <el-button
-        size="small" plain :disabled="page >= totalPages" @click="reload(page + 1)"
-      >Next ▶</el-button>
+      <button class="rl-page-btn" :disabled="page >= totalPages" @click="reload(page + 1)">Next ▶</button>
     </div>
   </div>
 </template>
@@ -108,6 +107,14 @@ const props = defineProps<{
   initialBodyPart?: string
   initialSentiment?: string
 }>()
+
+const sentimentOptions = [
+  { value: 'all',      label: 'All',         color: '#60a5fa', bg: 'rgba(96,165,250,.12)' },
+  { value: 'positive', label: '😊 Positive', color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
+  { value: 'negative', label: '😞 Negative', color: '#f87171', bg: 'rgba(248,113,113,.12)' },
+  { value: 'mixed',    label: '😐 Mixed',    color: '#facc15', bg: 'rgba(250,204,21,.12)'  },
+  { value: 'neutral',  label: 'Neutral',     color: '#94a3b8', bg: 'rgba(148,163,184,.12)' },
+]
 
 const bodyPart  = ref(props.initialBodyPart  ?? 'all')
 const sentiment = ref(props.initialSentiment ?? 'all')
@@ -129,6 +136,17 @@ function debounceSearch() {
     q.value = qInput.value
     reload(1)
   }, 300)
+}
+
+function clearSearch() {
+  qInput.value = ''
+  q.value = ''
+  reload(1)
+}
+
+function setSentiment(val: string) {
+  sentiment.value = val
+  reload(1)
 }
 
 async function reload(p = page.value) {
@@ -157,7 +175,6 @@ async function reload(p = page.value) {
   }
 }
 
-// Reload when parent changes body_part or drugId
 watch(() => props.initialBodyPart, (val) => {
   bodyPart.value = val ?? 'all'
   reload(1)
@@ -178,48 +195,138 @@ function sentimentLabel(s: string) {
 .rl-wrap {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-/* Filters */
+/* ── Filter bar ── */
 .rl-filters {
-  display: grid;
-  grid-template-columns: 1fr 140px 140px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
-.rl-search { width: 100%; }
-.rl-select { width: 100%; }
 
+.rl-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rl-input-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rl-search-icon {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.rl-input {
+  width: 100%;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  padding: 6px 30px 6px 32px;
+  outline: none;
+  transition: border-color .15s;
+}
+.rl-input::placeholder { color: #475569; }
+.rl-input:focus { border-color: #60a5fa; }
+
+.rl-clear-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.rl-clear-btn:hover { color: #94a3b8; }
+
+.rl-sort {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  outline: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s;
+}
+.rl-sort:focus { border-color: #60a5fa; }
+.rl-sort option { background: #1e293b; color: #cbd5e1; }
+
+/* Sentiment pills */
+.rl-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rl-pill {
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  color: #64748b;
+  font-size: 0.72rem;
+  padding: 3px 11px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  white-space: nowrap;
+}
+.rl-pill:hover { border-color: #475569; color: #94a3b8; }
+.rl-pill.active { font-weight: 600; }
+
+/* ── Summary ── */
 .rl-summary {
   font-size: 0.78rem;
   color: #64748b;
 }
 .rl-count { color: #cbd5e1; font-weight: 600; }
 .rl-tag { margin-left: 8px; }
-.rl-tag strong {
-  text-transform: capitalize;
-  color: #60a5fa;
-}
+.rl-tag strong { text-transform: capitalize; color: #60a5fa; }
 
-/* State */
-.rl-state {
-  padding: 24px;
-  text-align: center;
+/* ── Skeleton loading ── */
+.rl-state { padding: 16px 0; }
+.rl-skeleton {
+  height: 72px;
+  background: linear-gradient(90deg, #1e293b 25%, #253347 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 10px;
+  margin-bottom: 8px;
 }
-.rl-empty { color: #64748b; font-size: 0.85rem; }
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.rl-empty { text-align: center; color: #64748b; font-size: 0.85rem; }
 
-/* Cards */
+/* ── Cards ── */
 .rl-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
+
 .rl-card {
   background: #0f172a;
   border-radius: 10px;
   padding: 12px 14px;
   border-left: 3px solid #475569;
-  transition: transform .15s;
+  transition: transform .15s, border-left-color .15s;
 }
 .rl-card:hover { transform: translateX(2px); }
 .rl-card-negative { border-left-color: #f87171; }
@@ -238,6 +345,7 @@ function sentimentLabel(s: string) {
 .rl-stars { color: #475569; letter-spacing: 1px; }
 .rl-stars-empty { color: #475569; font-style: italic; font-size: 0.72rem; }
 .star.filled { color: #fbbf24; }
+
 .rl-sentiment {
   font-size: 0.7rem;
   padding: 2px 8px;
@@ -247,9 +355,10 @@ function sentimentLabel(s: string) {
   font-weight: 600;
 }
 .s-negative { background: rgba(248,113,113,.15); color: #f87171; }
-.s-positive { background: rgba(74,222,128,.15); color: #4ade80; }
-.s-mixed    { background: rgba(250,204,21,.15); color: #facc15; }
+.s-positive { background: rgba(74,222,128,.15);  color: #4ade80; }
+.s-mixed    { background: rgba(250,204,21,.15);  color: #facc15; }
 .s-neutral  { background: rgba(148,163,184,.15); color: #94a3b8; }
+
 .rl-source {
   margin-left: auto;
   color: #475569;
@@ -278,15 +387,29 @@ function sentimentLabel(s: string) {
   text-transform: capitalize;
 }
 
-/* Pager */
+/* ── Pagination ── */
 .rl-pager {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 14px;
-  padding: 12px 0;
+  padding: 10px 0;
   font-size: 0.82rem;
 }
+
+.rl-page-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.rl-page-btn:hover:not(:disabled) { border-color: #60a5fa; color: #60a5fa; }
+.rl-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .rl-page-info {
   color: #94a3b8;
   font-variant-numeric: tabular-nums;

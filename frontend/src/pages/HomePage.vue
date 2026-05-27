@@ -68,6 +68,7 @@
       <el-tabs v-model="mode" class="search-tabs">
         <el-tab-pane label="🔍  Keyword Search" name="keyword" />
         <el-tab-pane label="🔤  A–Z Browse" name="index" />
+        <el-tab-pane label="🩺  By Body Part" name="bodypart" />
       </el-tabs>
 
       <!-- Keyword Search -->
@@ -112,6 +113,51 @@
             @click="goToDrug(drug.id)"
           >{{ drug.name }}</button>
         </div>
+      </div>
+
+      <!-- Body Part Browse -->
+      <div v-else-if="mode === 'bodypart'" class="bp-browse">
+        <p class="bp-hint">Select a body part to see drugs with known benefits for that area.</p>
+        <div class="bp-grid">
+          <button
+            v-for="bp in BODY_PARTS"
+            :key="bp.key"
+            class="bp-btn"
+            :class="{ active: selectedBodyPart === bp.key }"
+            @click="selectBodyPart(bp.key)"
+          >
+            <span class="bp-icon">{{ bp.icon }}</span>
+            <span class="bp-name">{{ bp.label }}</span>
+          </button>
+        </div>
+
+        <div v-if="bpLoading" class="bp-loading">
+          <div class="bp-skeleton" v-for="i in 4" :key="i" />
+        </div>
+
+        <template v-else-if="selectedBodyPart">
+          <div v-if="bpResults.length" class="bp-results">
+            <div class="bp-result-header">
+              <span class="bp-count">{{ bpResults.length }}</span> drugs with benefits for
+              <strong>{{ BODY_PARTS.find(b => b.key === selectedBodyPart)?.label }}</strong>
+            </div>
+            <div class="index-results">
+              <div
+                v-for="drug in bpResults"
+                :key="drug.drug_id"
+                class="index-item"
+                @click="goToDrug(drug.drug_id)"
+              >
+                <div class="index-item-left">
+                  <span class="drug-name">{{ drug.name }}</span>
+                  <span v-if="drug.data_quality === 'full'" class="badge-full">Full Data</span>
+                </div>
+                <span class="drug-use">{{ drug.main_use || '—' }}</span>
+              </div>
+            </div>
+          </div>
+          <p v-else class="empty-msg">No drugs found for this body part.</p>
+        </template>
       </div>
 
       <!-- A–Z Browse -->
@@ -236,7 +282,7 @@ import type { DrugResult } from '../api/client'
 import AnatomyHero from '../components/AnatomyHero.vue'
 
 const router = useRouter()
-const mode   = ref<'keyword' | 'index'>('keyword')
+const mode   = ref<'keyword' | 'index' | 'bodypart'>('keyword')
 const query  = ref('')
 const noResults   = ref(false)
 const showSources = ref(false)
@@ -244,6 +290,39 @@ const fuzzyResults  = ref<DrugResult[]>([])
 const indexResults  = ref<DrugResult[]>([])
 const selectedLetter = ref('')
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+// ── Body Part Browse ──────────────────────────────────────────────────────
+const BODY_PARTS = [
+  { key: 'heart',        label: 'Heart',        icon: '❤️'  },
+  { key: 'lung',         label: 'Lungs',        icon: '🫁'  },
+  { key: 'brain',        label: 'Brain',        icon: '🧠'  },
+  { key: 'liver',        label: 'Liver',        icon: '🟡'  },
+  { key: 'stomach',      label: 'Stomach',      icon: '🫃'  },
+  { key: 'kidney',       label: 'Kidneys',      icon: '🫘'  },
+  { key: 'immune',       label: 'Immune',       icon: '🛡️'  },
+  { key: 'endocrine',    label: 'Endocrine',    icon: '⚗️'  },
+  { key: 'muscle',       label: 'Muscles',      icon: '💪'  },
+  { key: 'blood',        label: 'Blood',        icon: '🩸'  },
+  { key: 'skin',         label: 'Skin',         icon: '✨'  },
+  { key: 'vascular',     label: 'Vascular',     icon: '🩺'  },
+  { key: 'eye',          label: 'Eyes',         icon: '👁️'  },
+  { key: 'ear',          label: 'Ears',         icon: '👂'  },
+  { key: 'reproductive', label: 'Reproductive', icon: '🌸'  },
+]
+const selectedBodyPart = ref('')
+const bpResults = ref<DrugResult[]>([])
+const bpLoading = ref(false)
+
+async function selectBodyPart(part: string) {
+  selectedBodyPart.value = part
+  bpResults.value = []
+  bpLoading.value = true
+  try {
+    const res = await api.searchByBodyPart(part)
+    if (res.data.success) bpResults.value = res.data.data.results
+  } catch {}
+  bpLoading.value = false
+}
 
 // ── Ticker data ───────────────────────────────────────────────────────────
 const tickerItems = ref([
@@ -833,6 +912,74 @@ async function selectLetter(l: string) {
   color: #334155;
   margin: 20px 0 0;
 }
+
+/* ── Body Part Browse ────────────────────────────────────────────── */
+.bp-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0 0 14px;
+}
+
+.bp-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.bp-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.bp-btn:hover {
+  border-color: #4ade80;
+  background: rgba(74,222,128,.06);
+}
+.bp-btn.active {
+  border-color: #4ade80;
+  background: rgba(74,222,128,.12);
+  box-shadow: 0 0 10px rgba(74,222,128,.2);
+}
+
+.bp-icon { font-size: 1.25rem; line-height: 1; }
+.bp-name {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+.bp-btn.active .bp-name { color: #4ade80; }
+
+.bp-loading { padding: 8px 0; }
+.bp-skeleton {
+  height: 44px;
+  background: linear-gradient(90deg, #1e293b 25%, #253347 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: bp-shimmer 1.4s infinite;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+@keyframes bp-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.bp-result-header {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+.bp-count { color: #4ade80; font-weight: 700; }
+.bp-result-header strong { color: #e2e8f0; text-transform: capitalize; }
 
 /* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 960px) {

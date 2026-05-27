@@ -129,6 +129,11 @@
             <div v-if="store.overview.quick_facts.dosage_form" class="dp-fact">
               <span class="dp-fact-label">Form</span>
               <span class="dp-fact-val">{{ truncate(store.overview.quick_facts.dosage_form, 40) }}</span>
+              <button
+                v-if="store.overview.quick_facts.dosage_form.length > 40"
+                class="dp-fact-expand"
+                @click="dosageModal = true"
+              >read full text ↗</button>
             </div>
             <div v-if="store.overview.quick_facts.route" class="dp-fact">
               <span class="dp-fact-label">Route</span>
@@ -194,10 +199,27 @@
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <Transition name="dosage-fade">
+      <div v-if="dosageModal" class="dosage-overlay" @click.self="dosageModal = false">
+        <div class="dosage-modal">
+          <div class="dosage-modal-header">
+            <span class="dosage-modal-title">Dosage Form</span>
+            <button class="dosage-modal-close" @click="dosageModal = false">✕</button>
+          </div>
+          <div class="dosage-modal-body">
+            <p>{{ store.overview?.quick_facts?.dosage_form?.replace(/[…\.]{1,3}$/, '').trim() }}</p>
+            <p class="dosage-modal-note">Source: openFDA Drug Labels (excerpt)</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDrugStore } from '../stores/drugStore'
 import AnatomyBody from '../components/AnatomyBody.vue'
@@ -225,6 +247,8 @@ const hoveredEffects = computed(() =>
 )
 
 const topAnatomyEffects = computed(() => store.anatomyEffects.slice(0, 12))
+
+const dosageModal = ref(false)
 
 async function load(id: number) {
   await store.loadDrug(id)
@@ -458,6 +482,7 @@ function truncate(s: string | null | undefined, n: number) {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 /* Stats */
@@ -666,6 +691,81 @@ function truncate(s: string | null | undefined, n: number) {
   color: var(--text);
   text-transform: capitalize;
 }
+.dp-fact-expand {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 0;
+  cursor: pointer;
+  margin-top: 2px;
+  text-align: left;
+}
+.dp-fact-expand:hover { text-decoration: underline; }
+
+/* Dosage form modal */
+.dosage-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.dosage-modal {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+}
+.dosage-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #334155;
+}
+.dosage-modal-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #60a5fa;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dosage-modal-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.dosage-modal-close:hover { color: #f8fafc; background: #334155; }
+.dosage-modal-body {
+  padding: 20px;
+}
+.dosage-modal-body p {
+  font-size: 0.9rem;
+  line-height: 1.8;
+  color: #94a3b8;
+  margin: 0 0 12px;
+}
+.dosage-modal-note {
+  font-size: 0.72rem !important;
+  color: #475569 !important;
+  margin: 0 !important;
+  font-style: italic;
+}
+.dosage-fade-enter-active, .dosage-fade-leave-active { transition: opacity 0.2s; }
+.dosage-fade-enter-from, .dosage-fade-leave-to { opacity: 0; }
 
 /* Region list */
 .dp-region-list { display: flex; flex-direction: column; gap: 2px; max-width: 700px; }

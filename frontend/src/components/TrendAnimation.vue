@@ -39,7 +39,7 @@
     </div>
 
     <!-- ── Narrative ── -->
-    <Transition name="fade">
+    <Transition name="fade" mode="out-in">
       <div class="narrative" v-if="narrativeText" :key="narrativeText">
         <el-icon><InfoFilled /></el-icon>
         <span>{{ narrativeText }}</span>
@@ -76,22 +76,20 @@
         Active Systems · {{ currentQuarter }}
       </div>
       <div class="body-bars">
-        <TransitionGroup name="bar-list" tag="div">
-          <div v-for="row in currentFrame" :key="row.body_part" class="bar-row">
-            <span class="bar-label">{{ row.body_part }}</span>
-            <div class="bar-track">
-              <div class="bar-fill"
-                   :style="{ width: toPercent(row.normalized_frequency),
-                             background: barGradient(row) }"
-              />
-            </div>
-            <span class="bar-count">{{ row.report_count.toLocaleString() }}</span>
-            <el-tag v-if="row.signal_flag" size="small" type="danger" effect="dark">⚠ spike</el-tag>
-            <span v-else class="conf-pill" :class="`conf-${row.confidence}`">
-              {{ row.confidence }}
-            </span>
+        <div v-for="row in currentFrame" :key="row.body_part" class="bar-row">
+          <span class="bar-label">{{ row.body_part }}</span>
+          <div class="bar-track">
+            <div class="bar-fill"
+                 :style="{ width: toPercent(row.normalized_frequency),
+                           background: barGradient(row) }"
+            />
           </div>
-        </TransitionGroup>
+          <span class="bar-count">{{ row.report_count.toLocaleString() }}</span>
+          <el-tag v-if="row.signal_flag" size="small" type="danger" effect="dark">⚠ spike</el-tag>
+          <span v-else class="conf-pill" :class="`conf-${row.confidence}`">
+            {{ row.confidence }}
+          </span>
+        </div>
         <p v-if="!currentFrame.length" class="no-data-sm">
           No reports in {{ currentQuarter }}.
         </p>
@@ -404,11 +402,17 @@ function movePlayheads() {
   if (!tScale) return
   const q    = currentQuarter.value
   const phX  = tScale(q) ?? 0
-  tPlayhead?.attr('x1', phX).attr('x2', phX)
+  const dur  = Math.max(80, speed.value * 0.65)
+
+  tPlayhead?.interrupt()
+    .transition().duration(dur).ease(d3.easeCubicOut)
+    .attr('x1', phX).attr('x2', phX)
 
   const hIdx = quarters.value.indexOf(q)
   const hphX = hmLabelW + (hIdx + 0.5) * hmCellW
-  hPlayhead?.attr('x1', hphX).attr('x2', hphX)
+  hPlayhead?.interrupt()
+    .transition().duration(dur).ease(d3.easeCubicOut)
+    .attr('x1', hphX).attr('x2', hphX)
 
   refreshDotStyles()
 }
@@ -532,10 +536,7 @@ function confidenceType(c: string) {
 .timeline-wrap { margin-bottom: 4px; overflow: hidden; }
 
 /* ── Body bars ── */
-.body-bars { display: flex; flex-direction: column; gap: 5px; }
-.bar-list-enter-active,
-.bar-list-leave-active { transition: all .25s; }
-.bar-list-enter-from, .bar-list-leave-to { opacity: 0; transform: translateX(-8px); }
+.body-bars { display: flex; flex-direction: column; gap: 5px; min-height: 120px; }
 
 .bar-row {
   display: grid;
