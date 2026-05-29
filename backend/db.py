@@ -5,11 +5,13 @@ Tables are created here if they don't exist yet so the backend can start
 even before the pipeline has been run (it will just return empty results).
 """
 
+import os
 import sqlite3
 from pathlib import Path
 from contextlib import contextmanager
 
-DB_PATH = Path(__file__).parent.parent / "data" / "processed" / "medinsight.db"
+_DEFAULT_DB = Path(__file__).parent.parent / "data" / "processed" / "medinsight.db"
+DB_PATH = Path(os.getenv("DB_PATH", str(_DEFAULT_DB)))
 
 
 def get_connection() -> sqlite3.Connection:

@@ -1,7 +1,9 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '',   // Vite proxy forwards /api/* → localhost:8000, no CORS needed
+  // Dev: VITE_API_BASE_URL is unset → '' → Vite proxy handles /api/* → localhost:8000
+  // Prod: VITE_API_BASE_URL = https://medinsight-api.onrender.com (set in Render dashboard)
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   timeout: 30000,
 })
 

@@ -8,6 +8,7 @@ Start:
 API docs: http://localhost:8000/docs
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -32,10 +33,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS for Vue 3 dev server (port 5173)
+_default_origins = "http://localhost:5173,http://127.0.0.1:5173"
+_allowed_origins = os.getenv("ALLOWED_ORIGINS", _default_origins).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,0 +1,43 @@
+services:
+  # ── Backend: FastAPI ────────────────────────────────────────────────────────
+  - type: web
+    name: medinsight-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    # Persistent disk keeps medinsight.db across deploys ($0.25/GB/month).
+    # Upload the DB once via the Render Shell after first deploy.
+    disk:
+      name: medinsight-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /data/medinsight.db
+      - key: ALLOWED_ORIGINS
+        # Update if your frontend URL differs (e.g. Render appended a suffix).
+        value: "https://medinsight-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173"
+      - key: DB_DOWNLOAD_URL
+        # Optional: set a direct-download URL for medinsight.db (Google Drive,
+        # Dropbox, etc.) so the DB is fetched automatically on first boot.
+        sync: false
+
+  # ── Frontend: Vue 3 static build ───────────────────────────────────────────
+  - type: web
+    name: medinsight-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        # Must point to the deployed backend URL. Update if Render assigned a
+        # different name (e.g. medinsight-api-xxxx.onrender.com).
+        value: https://medinsight-api.onrender.com
+    routes:
+      # Rewrite all paths to index.html so Vue Router handles client-side routing.
+      - type: rewrite
+        source: /*
+        destination: /index.html
