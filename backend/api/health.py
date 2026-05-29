@@ -20,7 +20,7 @@ def _conn():
 def health_check(conn: sqlite3.Connection = Depends(_conn)):
     """
     GET /api/health
-    返回服务状态和数据版本，供前端 SummaryBar 展示数据刷新时间。
+    Returns service status and data version for the frontend SummaryBar.
     """
     try:
         drug_count = conn.execute("SELECT COUNT(*) FROM drugs").fetchone()[0]

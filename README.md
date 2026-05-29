@@ -8,10 +8,11 @@ Drug Visualization Platform | CSEN 377 Data Visualization, SCU Spring 2026
 
 ## Features
 
-- **Interactive Anatomy Map** — Clickable holographic body figure highlights which organs are affected (benefits in green, side effects in red)
-- **FAERS Trend Animation** — Quarterly adverse event timeline with D3.js heatmap, playback controls, and CUSUM statistical spike detection
-- **Patient Sentiment Tug-of-War** — Visual balance of positive vs. negative patient reviews by body system, with a review drawer
-- **Smart Search** — 8,000+ drugs ranked by data quality; A–Z browser with Full Data badges
+- **Interactive Anatomy Map** — Holographic body figure with 15 clickable organ regions; highlights benefits (green), side effects (red), or both (amber) with animated glow
+- **FAERS Adverse Event Heatmap** — Static XY heatmap (X = year, Y = body system) with row-wise color normalization, CUSUM spike detection, missing-data stripe pattern, and a Pearson co-activation correlation matrix
+- **Patient Sentiment Tug-of-War** — Visual balance of positive vs. negative reviews per body system; rope position = net sentiment ratio; click any row to open a paginated review drawer
+- **Smart Search** — 8,000+ drugs ranked by data quality; A–Z browser; body-part filter tab
+- **TF-IDF Word Cloud** — Homepage anatomy-silhouette word cloud: patient vocabulary terms shaped to the body outline, colored by body system, placed beside the anatomy hero
 
 ---
 
@@ -41,8 +42,8 @@ medinsight/
 │   └── src/
 │       ├── pages/             # HomePage.vue, DrugDetailPage.vue
 │       ├── components/        # AnatomyBody, AnatomyHero, TrendAnimation,
-│       │                      # TugOfWarChart, IsotypeGrid, ReviewList
-│       └── api/client.ts      # Axios API client
+│       │                      # TugOfWarChart, ReviewList
+│       └── api/client.ts      # Axios API client + TypeScript types
 │
 ├── pipeline/                  # Data processing scripts
 │   ├── run_pipeline.py        # Main entry → generates medinsight.db
@@ -53,10 +54,12 @@ medinsight/
 │
 ├── data/
 │   ├── raw/                   # Raw downloads (gitignored)
-│   └── processed/             # DB + cleaning scripts (DB gitignored)
+│   └── processed/             # DB + cleaning reports (DB gitignored)
 │
 ├── docs/                      # Design documents
 ├── tests/                     # Backend (pytest) + Frontend (vitest)
+│   ├── backend/               # 61 pytest tests
+│   └── components/            # Vue component integration tests
 └── requirements.txt
 ```
 
@@ -78,22 +81,117 @@ npm install --prefix frontend
 
 ### 2. Data Setup
 
-The database is not included in the repo. You have two options:
+The SQLite database (`data/processed/medinsight.db`, ~152 MB) is excluded from the repo. Run the steps below to rebuild it from scratch. Total download size is roughly **3 GB**; processing takes 20–40 minutes depending on your machine.
 
-**Option A — Get the DB from a teammate** (recommended)  
-Place `medinsight.db` at `data/processed/medinsight.db`.
+---
 
-**Option B — Rebuild from raw data**
+#### Step 1 — Download the three raw datasets
+
+**Dataset A: FAERS Drug Event Signal Dataset** (Kaggle)
+
+1. Go to [https://www.kaggle.com/datasets/nicholasgah/faers-drug-event-signal-dataset](https://www.kaggle.com/datasets/nicholasgah/faers-drug-event-signal-dataset)
+2. Click **Download** → save the ZIP
+3. Place it at:
+   ```
+   data/processed/FAERS/FAERS Drug Event Signal Dataset.zip
+   ```
+
+**Dataset B: WebMD Drug Reviews Dataset** (Kaggle)
+
+1. Go to [https://www.kaggle.com/datasets/rohanharode07/webmd-drug-reviews-dataset](https://www.kaggle.com/datasets/rohanharode07/webmd-drug-reviews-dataset)
+2. Click **Download** → save the ZIP
+3. Place it at:
+   ```
+   data/processed/WebMDReview/WebMD Drug Reviews Dataset.zip
+   ```
+
+**Dataset C: OpenFDA Drug Labels** (FDA bulk API — script provided)
 
 ```bash
-# Download raw data (see pipeline/download_openfda.sh for OpenFDA)
-# Place FAERS zip in data/processed/FAERS/
-# Place WebMD zip in data/processed/WebMDReview/
+# Downloads 13 zip files (~1.82 GB) from download.open.fda.gov
+# Resumable: re-running skips already-complete files
+bash pipeline/download_openfda.sh
+```
 
+The files land in `data/processed/OpenFDA/data/raw/` automatically.
+
+---
+
+#### Step 2 — Clean each dataset
+
+Run the three cleaning scripts independently (order does not matter):
+
+```bash
+# Clean FAERS signal dataset → cleaned_faers_signals_prr_ror.csv
 python pipeline/clean_faers_signals.py
+
+# Clean WebMD reviews → cleaned_webmd_reviews.csv
 python pipeline/clean_webmd_reviews.py
+
+# Stream-process OpenFDA label ZIPs → multiple per-drug JSON/CSV files
 python pipeline/clean_openfda_streaming.py
+```
+
+Each script prints a summary of rows kept/dropped and writes a cleaning report to `data/processed/reports/`.
+
+---
+
+#### Step 3 — Build the SQLite database
+
+```bash
+# Full pipeline: loads all cleaned CSVs and writes medinsight.db
 python pipeline/run_pipeline.py
+```
+
+Individual steps if you need to rerun only part of the pipeline:
+
+```bash
+python pipeline/run_pipeline.py --faers        # reload FAERS signals only
+python pipeline/run_pipeline.py --webmd        # reload WebMD reviews only
+python pipeline/run_pipeline.py --indications  # re-fill OpenFDA indications
+python pipeline/run_pipeline.py --benefits     # rebuild benefit effects
+python pipeline/run_pipeline.py --index        # rebuild search index
+python pipeline/run_pipeline.py --ratings      # recalculate drug ratings
+python pipeline/run_pipeline.py --v35          # run indications + benefits + ratings
+```
+
+Expected output: `data/processed/medinsight.db` (~152 MB, 8,689 drugs, 287K+ reviews).
+
+---
+
+#### Step 4 — Run NLP corpus analysis (word cloud data)
+
+```bash
+# Computes TF-IDF scores and sentiment distribution per body system
+# Writes results into corpus_tfidf and corpus_sentiment tables in the DB
+python pipeline/nlp_corpus_analysis.py
+```
+
+This step powers the TF-IDF word cloud on the homepage. Skip it if you only need the three main visualizations.
+
+---
+
+#### Expected file tree after setup
+
+```
+data/
+├── raw/
+│   ├── faers/        # (unused — pipeline reads from processed/)
+│   ├── webmd/
+│   └── openfda/
+└── processed/
+    ├── FAERS/
+    │   ├── FAERS Drug Event Signal Dataset.zip   ← you place this
+    │   └── cleaned_faers_signals_prr_ror.csv     ← generated
+    ├── WebMDReview/
+    │   ├── WebMD Drug Reviews Dataset.zip        ← you place this
+    │   └── cleaned_webmd_reviews.csv             ← generated
+    ├── OpenFDA/
+    │   └── data/
+    │       ├── raw/      ← 13 ZIPs downloaded by script
+    │       └── processed/
+    ├── reports/           ← cleaning summaries (markdown)
+    └── medinsight.db      ← final database (~152 MB)
 ```
 
 ### 3. Run the app
@@ -112,32 +210,83 @@ Open [http://localhost:5173](http://localhost:5173)
 
 ## Three Visualizations
 
-| # | Question | Component | Data |
-|---|----------|-----------|------|
+| # | Question | Component | Data Source |
+|---|----------|-----------|-------------|
 | Vis 1 | Which organs does this drug affect? | `AnatomyBody.vue` | openFDA labels + FAERS |
-| Vis 2 | How have adverse events changed over time? | `TrendAnimation.vue` | FDA FAERS quarterly |
-| Vis 3 | What do patients say about their experience? | `TugOfWarChart.vue` | WebMD reviews (NLP) |
+| Vis 2 | How have adverse events changed over time? | `TrendAnimation.vue` | FDA FAERS API (quarterly, 2004–present) |
+| Vis 3 | What do patients say about their experience? | `TugOfWarChart.vue` | WebMD reviews (VADER NLP) |
+
+### Vis 2 — FAERS Heatmap Details
+
+- **XY layout**: years on X-axis, body systems on Y-axis
+- **Row-wise normalization**: each body system's color scale is independent, so rare and frequent systems are both visible
+- **Three cell states**: colored (reports exist) · striped (data gap in API) · dark (zero reports confirmed)
+- **CUSUM signals**: cells with statistically unusual spikes get a red border
+- **Co-activation matrix**: Pearson correlation of annual report counts across body systems (shown when ≥ 2 systems and ≥ 3 years of data)
+- **Row highlight**: click a row to pin it; hovering an organ in the anatomy map also highlights the corresponding row
+
+---
+
+## Testing
+
+The project has a 234-test suite covering all three visualization layers:
+
+```bash
+# Backend unit + integration tests (61 tests)
+pytest tests/backend/ -v
+
+# Frontend unit tests (173 tests)
+cd frontend && npx vitest run --reporter=verbose
+
+# Production build verification
+cd frontend && npm run build
+```
+
+| Layer | Tests | Coverage |
+|-------|-------|----------|
+| Backend API (pytest) | 61 | All endpoints: search, drugs, trend, health, reviews |
+| Frontend logic — Vis 1 | 52 | highlightType, maxSeverity, organStroke, effectsAt |
+| Frontend logic — Vis 2 | 51 | yearData, pearson, correlationData, getActiveRow, cellFill |
+| Frontend logic — Vis 3 | 53 | netSentiment, knotX/R, ropeWidth, centerColor, topTerms |
+| Component integration | 17 | mount + emit + API mock for all 3 visualizations |
 
 ---
 
 ## Sprint Summary
 
-| Sprint | Period | Status |
-|--------|--------|--------|
-| Sprint 0 | 4/24–4/30 | ✅ Planning + dataset approval |
-| Sprint 1 | 5/1–5/7  | ✅ Data pipeline + SQLite DB |
-| Sprint 2 | 5/8–5/14 | ✅ FastAPI backend + Vue scaffold |
-| Sprint 3 | 5/15–5/21 | ✅ All three visualizations |
-| Sprint 4 | 5/22–5/28 | 🔧 UI polish ✅ · write-up ⬜ · video ⬜ |
+| Sprint | Period | Highlights |
+|--------|--------|------------|
+| Sprint 0 | 4/24–4/30 | ✅ Planning, dataset selection, project scoping |
+| Sprint 1 | 5/1–5/7  | ✅ Data pipeline, SQLite DB built (8,689 drugs, 287K+ reviews) |
+| Sprint 2 | 5/8–5/14 | ✅ FastAPI backend (all endpoints), Vue 3 scaffold, SQLite integration |
+| Sprint 3 | 5/15–5/21 | ✅ All three visualizations functional end-to-end |
+| Sprint 4 | 5/22–5/28 | ✅ UI polish, heatmap redesign, 234-test suite, clean production build |
+| Sprint 5 | 5/29      | ✅ TF-IDF word cloud, final bug fixes, codebase cleanup for submission |
 
-## Recent Changes
+---
 
-| Date | Change |
-|------|--------|
-| 2026-05-26 | Fixed layout jumping in `TrendAnimation.vue` during playback — replaced `<TransitionGroup>` with plain `<div v-for>` and added `mode="out-in"` to narrative transition |
-| 2026-05-24 | Full UI overhaul: holographic anatomy hero (homepage), interactive anatomy body (detail page), hover-card height stabilization |
-| 2026-05-24 | Added "About the Data" modal on homepage with three data-source cards |
-| 2026-05-23 | SQLite concurrency fix (`check_same_thread=False`, `busy_timeout=5000`) |
+## Changelog
+
+### 2026-05-29 — Final cleanup & submission prep
+- Added `CorpusWordCloud.vue`: canvas word cloud shaped to the anatomy silhouette, colored by body system, driven by TF-IDF patient vocabulary
+- Fixed tooltip overflow in `TrendAnimation.vue` via `<Teleport to="body">` — tooltip now tracks cursor correctly regardless of CSS containing blocks
+- Translated all inline comments and docstrings from Chinese to English across the entire codebase
+
+### 2026-05-28 — Vis 2 redesign + full test suite
+- Rewrote Vis 2 as a static XY heatmap (year × body system): row-wise color normalization, missing-data stripe pattern, CUSUM spike borders, color legend, row-click highlight, body-map row sync, and Pearson co-activation matrix
+- Added 173 Vitest unit tests for all three visualization logic layers (234 total); fixed pre-existing failure FE-AH-04
+- Fixed `npm run build`: upgraded vue-tsc 1.8 → 3.3, added `@types/d3`, set tsconfig lib to ES2022
+
+### 2026-05-26 — Hero polish & navigation
+- AnatomyHero v6.0: dot-grid overlay, organ pulse rings, HUD text, callout labels
+- Drug ticker names now link directly to drug detail pages
+
+### 2026-05-24 — UI overhaul
+- Full dark-theme redesign: holographic anatomy hero, interactive anatomy body with mode toggle, stabilized hover-card heights
+- Added "About the Data" modal on the homepage
+
+### 2026-05-23 — Stability
+- SQLite concurrency fix (`check_same_thread=False`, `busy_timeout=5000`)
 
 ---
 

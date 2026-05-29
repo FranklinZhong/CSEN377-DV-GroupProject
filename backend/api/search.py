@@ -23,7 +23,7 @@ def keyword_search(
 ):
     """
     GET /api/search?q=met
-    实时联想搜索，前缀匹配优先，支持别名。
+    Real-time typeahead search: prefix match with alias support.
     """
     results = search_drugs(q, conn)
     if not results:
@@ -39,7 +39,7 @@ def fuzzy_search_endpoint(
 ):
     """
     GET /api/search/fuzzy?q=amoxcillin
-    拼写容错搜索，auto_redirect=False（不自动跳转）。
+    Spelling-tolerant fuzzy search; auto_redirect=False (no automatic redirect).
     """
     results = fuzzy_search(q, conn)
     return ok(
@@ -56,7 +56,7 @@ def by_body_part(
 ):
     """
     GET /api/search/by-body-part?part=heart
-    返回对指定身体部位有 benefit 效果的药物列表。
+    Returns drugs with a benefit effect on the specified body part.
     """
     rows = conn.execute(
         """
@@ -110,7 +110,7 @@ def index_search(
     """
     GET /api/search/index?letter=M
     GET /api/search/index?letter=M&prefix=ME
-    A-Z 分级索引。
+    A-Z tiered index.
     """
     _index_sql = """
         SELECT DISTINCT d.id, d.name, d.generic_name, d.indication_summary, d.risk_level,

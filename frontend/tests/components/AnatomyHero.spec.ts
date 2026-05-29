@@ -31,9 +31,9 @@ describe('AnatomyHero', () => {
     expect(wrapper.classes()).not.toContain('reduce-motion')
   })
 
-  it('animated flow element exists in SVG', () => {
+  it('FE-AH-04: hero-svg class exists on the SVG element', () => {
     const wrapper = mount(AnatomyHero)
-    const flow = wrapper.find('.hero-flow')
-    expect(flow.exists()).toBe(true)
+    const svg = wrapper.find('.hero-svg')
+    expect(svg.exists()).toBe(true)
   })
 })

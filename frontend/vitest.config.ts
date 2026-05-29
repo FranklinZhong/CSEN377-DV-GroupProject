@@ -16,7 +16,7 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     // Keep spec files inside frontend/ to avoid Vite URL-encoding issues with spaces in path
-    include: ['tests/**/*.spec.ts'],
+    include: ['tests/**/*.spec.ts', 'src/**/__tests__/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

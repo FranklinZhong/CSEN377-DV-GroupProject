@@ -1,10 +1,10 @@
 <!--
-  IsotypeGrid.vue — Vis 3 患者评论可视化（改版）
+  IsotypeGrid.vue — Vis 3 patient review visualization (revised)
 
-  改动：
-  - 蝴蝶对比图（Butterfly Chart）：负面向左/正面向右
-  - 点击行 → 右侧 el-drawer 显示两列评论引文
-  - 保留 isotype 小人在条形右侧
+  Changes:
+  - Butterfly Chart: negative bars extend left, positive bars extend right
+  - Row click → el-drawer on the right shows two-column review quotes
+  - Isotype icons preserved to the right of each bar
 -->
 <template>
   <div class="iso-wrap">

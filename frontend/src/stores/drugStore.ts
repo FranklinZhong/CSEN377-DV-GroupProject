@@ -4,7 +4,7 @@ import type { DrugSummary, DrugOverview, Effect, TrendPoint, ReviewCluster } fro
 import { api } from '../api/client'
 
 export type EffectFilter = 'all' | 'benefits' | 'sideeffects' | 'high'
-export type ViewMode = 'benefits' | 'side_effects' | 'both'
+export type ViewMode = 'benefits' | 'side_effects' | 'both' | 'neutral'
 
 export const useDrugStore = defineStore('drug', () => {
   // ── State ──────────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ export const useDrugStore = defineStore('drug', () => {
   const reviewClusters = ref<ReviewCluster[]>([])
 
   const effectFilter  = ref<EffectFilter>('sideeffects')
-  const viewMode      = ref<ViewMode>('benefits')   // v3.5 默认绿色 Benefits
+  const viewMode      = ref<ViewMode>('neutral')    // v4.3 default: neutral overview
   const hoveredPart   = ref<string | null>(null)
   const currentQuarter = ref<string | null>(null)
 
@@ -45,12 +45,13 @@ export const useDrugStore = defineStore('drug', () => {
     }
   })
 
-  // AnatomyBody 直接读：根据 viewMode 决定渲染哪些 effects
+  // AnatomyBody reads this directly: determines which effects to render based on viewMode
   const anatomyEffects = computed<Effect[]>(() => {
     switch (viewMode.value) {
       case 'benefits':     return benefits.value
       case 'side_effects': return sideEffects.value
-      case 'both':         return [...benefits.value, ...sideEffects.value]
+      case 'both':
+      case 'neutral':      return [...benefits.value, ...sideEffects.value]
     }
   })
 
@@ -127,7 +128,7 @@ export const useDrugStore = defineStore('drug', () => {
       trendData.value = res.data.data.timeline || []
       signalEvents.value = res.data.data.signal_events || []
       warnings.value.trend = res.data.warnings
-      // 默认显示最新季度
+      // Default to the most recent quarter
       const quarters = [...new Set(trendData.value.map(p => p.quarter))].sort()
       currentQuarter.value = quarters.at(-1) ?? null
     } catch {

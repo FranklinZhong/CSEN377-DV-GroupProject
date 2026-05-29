@@ -23,7 +23,7 @@
       <div class="dp-mode-toggle">
         <button
           v-for="m in modes" :key="m.value"
-          :class="['dp-mode-btn', { active: store.viewMode === m.value }]"
+          :class="['dp-mode-btn', `dp-mode-${m.value}`, { active: store.viewMode === m.value }]"
           @click="store.viewMode = m.value"
         >
           <span class="dp-mode-dot" :style="{ background: m.color }"></span>
@@ -107,7 +107,7 @@
       <div class="dp-right">
 
         <!-- 01 Official Use -->
-        <section class="dp-section" v-if="store.overview?.what_it_treats || store.overview?.key_indications?.length">
+        <section class="dp-section" v-if="store.overview?.what_it_treats || store.overview?.key_indications?.length" data-section="01">
           <div class="dp-section-eyebrow">01 — Official Use</div>
           <h2 class="dp-section-heading">What it treats</h2>
           <p v-if="store.overview?.what_it_treats" class="dp-section-body">
@@ -121,33 +121,31 @@
         </section>
 
         <!-- 02 Mechanism -->
-        <section class="dp-section" v-if="store.overview?.how_it_works">
+        <section class="dp-section" v-if="store.overview?.how_it_works" data-section="02">
           <div class="dp-section-eyebrow">02 — Mechanism</div>
           <h2 class="dp-section-heading">How it works</h2>
           <p class="dp-section-body">{{ store.overview.how_it_works }}</p>
-          <div v-if="store.overview?.quick_facts" class="dp-facts">
-            <div v-if="store.overview.quick_facts.dosage_form" class="dp-fact">
+          <div v-if="store.overview?.quick_facts" class="dp-facts-strip">
+            <span v-if="store.overview.quick_facts.dosage_form" class="dp-fact-item">
               <span class="dp-fact-label">Form</span>
               <span class="dp-fact-val">{{ truncate(store.overview.quick_facts.dosage_form, 40) }}</span>
-              <button
-                v-if="store.overview.quick_facts.dosage_form.length > 40"
-                class="dp-fact-expand"
-                @click="dosageModal = true"
-              >read full text ↗</button>
-            </div>
-            <div v-if="store.overview.quick_facts.route" class="dp-fact">
+              <button v-if="store.overview.quick_facts.dosage_form.length > 40" class="dp-fact-expand" @click="dosageModal = true">↗</button>
+            </span>
+            <span v-if="store.overview.quick_facts.route" class="dp-fact-sep">|</span>
+            <span v-if="store.overview.quick_facts.route" class="dp-fact-item">
               <span class="dp-fact-label">Route</span>
               <span class="dp-fact-val">{{ store.overview.quick_facts.route }}</span>
-            </div>
-            <div v-if="store.overview.quick_facts.rating" class="dp-fact">
-              <span class="dp-fact-label">Avg Rating</span>
-              <span class="dp-fact-val dp-val-green">{{ store.overview.quick_facts.rating }} / 5</span>
-            </div>
+            </span>
+            <span v-if="store.overview.quick_facts.rating" class="dp-fact-sep">|</span>
+            <span v-if="store.overview.quick_facts.rating" class="dp-fact-item">
+              <span class="dp-fact-label">Rating</span>
+              <span class="dp-fact-val dp-val-green">{{ store.overview.quick_facts.rating }}/5</span>
+            </span>
           </div>
         </section>
 
         <!-- 03 Body Impact -->
-        <section class="dp-section">
+        <section class="dp-section" data-section="03">
           <div class="dp-section-eyebrow">03 — Body Impact</div>
           <h2 class="dp-section-heading">Affected regions</h2>
           <p class="dp-section-sub">Hover a row to highlight the organ on the body map.</p>
@@ -174,22 +172,23 @@
         </section>
 
         <!-- 04 Patient Sentiment -->
-        <section class="dp-section">
+        <section class="dp-section" data-section="04">
           <div class="dp-section-eyebrow">04 — Patient Sentiment</div>
           <h2 class="dp-section-heading">What patients report</h2>
           <p class="dp-section-sub">Each row is a body region. Bar position shows positive vs negative sentiment balance.</p>
           <TugOfWarChart
             :drug-id="props.drugId"
-            @highlight="store.hoveredPart = $event"
+            :hovered-part="store.hoveredPart"
+            @highlight="store.hoveredPart = $event || null"
           />
         </section>
 
         <!-- 05 Adverse Event Trend -->
-        <section class="dp-section">
+        <section class="dp-section" data-section="05">
           <div class="dp-section-eyebrow">05 — FDA Adverse Events</div>
           <h2 class="dp-section-heading">Reported events over time</h2>
           <p class="dp-section-sub">Source: FDA FAERS database. Signal detection via CUSUM method.</p>
-          <TrendAnimation :drug-id="props.drugId" />
+          <TrendAnimation :drug-id="props.drugId" :hovered-part="store.hoveredPart" />
         </section>
 
         <footer class="dp-footer">
@@ -231,8 +230,9 @@ const router = useRouter()
 const store  = useDrugStore()
 
 const modes = computed(() => [
+  { value: 'neutral'     as const, label: 'Overview',     color: '#60a5fa', count: store.benefits.length + store.sideEffects.length },
   { value: 'benefits'    as const, label: 'Benefits',     color: '#22c55e', count: store.benefits.length },
-  { value: 'side_effects'as const, label: 'Side Effects', color: '#ef4444', count: store.sideEffects.length },
+  { value: 'side_effects'as const, label: 'Side Effects', color: '#ff2020', count: store.sideEffects.length },
   { value: 'both'        as const, label: 'Both',         color: '#facc15', count: store.benefits.length + store.sideEffects.length },
 ])
 
@@ -255,11 +255,7 @@ async function load(id: number) {
   store.loadOverview(id)
   await store.loadEffects(id)
   store.loadReviews(id)
-  if (store.benefits.length === 0 && store.sideEffects.length > 0) {
-    store.viewMode = 'side_effects'
-  } else {
-    store.viewMode = 'benefits'
-  }
+  store.viewMode = 'neutral'
 }
 
 onMounted(() => load(props.drugId))
@@ -273,15 +269,20 @@ function truncate(s: string | null | undefined, n: number) {
 <style scoped>
 /* ── Tokens ── */
 .dp, .dp-loading, .dp-error {
-  --green:  #22c55e;
-  --red:    #ef4444;
-  --yellow: #facc15;
-  --blue:   #3b82f6;
-  --bg:     #080c14;
-  --bg2:    #0d1220;
-  --border: rgba(255,255,255,0.07);
-  --text:   #e2e8f0;
-  --muted:  #64748b;
+  --green:    #22c55e;
+  --red:      #ef4444;
+  --yellow:   #facc15;
+  --blue:     #4a90c4;
+  --gold:     #c9a84c;
+  --gold-dim: rgba(201,168,76,0.12);
+  --bg:       #05080f;
+  --bg2:      #0a0e1a;
+  --bg3:      #10172a;
+  --border:   #1c2540;
+  --border2:  #2a3558;
+  --text:     #e8e0d0;
+  --text2:    #b0a898;
+  --muted:    #6b6560;
   --font-serif: 'Playfair Display', Georgia, serif;
   --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
   --font-sans:  'IBM Plex Sans', system-ui, sans-serif;
@@ -321,7 +322,7 @@ function truncate(s: string | null | undefined, n: number) {
   left: -50%;
   width: 50%;
   height: 100%;
-  background: var(--blue);
+  background: var(--gold);
   animation: slide 1.2s ease-in-out infinite;
 }
 @keyframes slide {
@@ -365,7 +366,7 @@ function truncate(s: string | null | undefined, n: number) {
   font-size: 0.85rem;
   transition: border-color 0.2s, color 0.2s;
 }
-.dp-btn-back:hover { border-color: var(--blue); color: var(--blue); }
+.dp-btn-back:hover { border-color: var(--gold); color: var(--gold); }
 
 /* ── Nav ── */
 .dp-nav {
@@ -373,8 +374,8 @@ function truncate(s: string | null | undefined, n: number) {
   align-items: center;
   justify-content: space-between;
   padding: 14px 32px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(8,12,20,0.9);
+  border-bottom: 1px solid var(--gold-dim);
+  background: rgba(5,8,15,0.92);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -394,7 +395,7 @@ function truncate(s: string | null | undefined, n: number) {
   align-items: center;
   gap: 6px;
 }
-.dp-back:hover { color: var(--text); }
+.dp-back:hover { color: var(--gold); }
 .dp-back-arrow { font-size: 1rem; }
 
 .dp-mode-toggle {
@@ -413,7 +414,7 @@ function truncate(s: string | null | undefined, n: number) {
   border: none;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   padding: 6px 14px;
   border-radius: 5px;
   cursor: pointer;
@@ -425,13 +426,17 @@ function truncate(s: string | null | undefined, n: number) {
   background: rgba(255,255,255,0.07);
   color: var(--text);
 }
+.dp-mode-btn.dp-mode-neutral.active     { color: #60a5fa; box-shadow: inset 0 0 0 1px #1d4ed8; }
+.dp-mode-btn.dp-mode-benefits.active    { color: #22c55e; box-shadow: inset 0 0 0 1px #16a34a; }
+.dp-mode-btn.dp-mode-side_effects.active{ color: #ff2020; box-shadow: inset 0 0 0 1px #cc0000; }
+.dp-mode-btn.dp-mode-both.active        { color: #facc15; box-shadow: inset 0 0 0 1px #b45309; }
 .dp-mode-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dp-mode-count { opacity: 0.45; font-size: 0.68rem; }
+.dp-mode-count { opacity: 0.45; font-size: 0.74rem; }
 
 /* ── Split Layout ── */
 .dp-split {
@@ -464,7 +469,7 @@ function truncate(s: string | null | undefined, n: number) {
   font-size: 2.4rem;
   font-weight: 900;
   line-height: 1.1;
-  color: #f8fafc;
+  color: var(--text);
   margin: 0 0 8px;
   text-transform: capitalize;
 }
@@ -506,12 +511,12 @@ function truncate(s: string | null | undefined, n: number) {
   font-family: var(--font-mono);
   font-size: 1.5rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--gold);
   line-height: 1;
 }
 .dp-stat-key {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.70rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
@@ -537,7 +542,7 @@ function truncate(s: string | null | undefined, n: number) {
 }
 .dp-hover-region {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--blue);
@@ -549,14 +554,14 @@ function truncate(s: string | null | undefined, n: number) {
   align-items: center;
   gap: 8px;
   font-size: 0.78rem;
-  color: #cbd5e1;
+  color: var(--text2);
 }
 .dp-hover-name { flex: 1; text-transform: capitalize; }
 .dp-hover-empty { color: var(--muted); font-size: 0.78rem; font-style: italic; margin: 0; }
 .dp-hover-idle { display: flex; align-items: center; justify-content: center; }
 .dp-hover-idle-text {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--muted);
   letter-spacing: 0.06em;
 }
@@ -574,7 +579,7 @@ function truncate(s: string | null | undefined, n: number) {
 /* Severity chip */
 .dp-sev {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 1px 6px;
@@ -602,14 +607,30 @@ function truncate(s: string | null | undefined, n: number) {
 
 /* Sections */
 .dp-section {
-  padding: 48px 48px 40px;
-  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  padding: 40px 48px 34px;
+  border-bottom: 1px solid var(--border2);
   animation: fadeUp 0.4s ease both;
 }
 .dp-section:last-of-type { border-bottom: none; }
+.dp-section[data-section]::before {
+  content: attr(data-section);
+  position: absolute;
+  right: -0.5rem;
+  top: -1.5rem;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 10rem;
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(201,168,76,0.04);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; }
 }
 .dp-section:nth-child(1) { animation-delay: 0.05s; }
 .dp-section:nth-child(2) { animation-delay: 0.10s; }
@@ -619,30 +640,30 @@ function truncate(s: string | null | undefined, n: number) {
 
 .dp-section-eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--muted);
+  color: var(--gold);
   margin-bottom: 10px;
 }
 .dp-section-heading {
   font-family: var(--font-serif);
   font-size: 1.9rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--text);
   margin: 0 0 16px;
   line-height: 1.2;
 }
 .dp-section-body {
   font-size: 0.9rem;
   line-height: 1.75;
-  color: #94a3b8;
+  color: var(--text2);
   max-width: 680px;
   margin: 0 0 18px;
 }
 .dp-section-sub {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--muted);
   margin: -8px 0 20px;
   letter-spacing: 0.04em;
@@ -651,58 +672,66 @@ function truncate(s: string | null | undefined, n: number) {
 /* Tags */
 .dp-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .dp-tag {
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.25);
-  color: #93c5fd;
-  font-size: 0.75rem;
+  background: var(--gold-dim);
+  border: 1px solid rgba(201,168,76,0.25);
+  color: var(--gold);
+  font-size: 0.80rem;
   padding: 4px 12px;
   border-radius: 20px;
   font-family: var(--font-mono);
   letter-spacing: 0.03em;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Facts */
-.dp-facts {
+.dp-facts-strip {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
-.dp-fact {
+.dp-fact-item {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 16px;
-  min-width: 120px;
+  align-items: baseline;
+  gap: 6px;
+}
+.dp-fact-sep {
+  color: var(--border2);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  user-select: none;
 }
 .dp-fact-label {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.70rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
 }
 .dp-fact-val {
   font-family: var(--font-mono);
-  font-size: 0.88rem;
-  color: var(--text);
+  font-size: 0.86rem;
+  color: var(--text2);
   text-transform: capitalize;
 }
 .dp-fact-expand {
   background: none;
   border: none;
-  color: #60a5fa;
+  color: var(--gold);
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.76rem;
   padding: 0;
   cursor: pointer;
-  margin-top: 2px;
-  text-align: left;
+  opacity: 0.7;
 }
-.dp-fact-expand:hover { text-decoration: underline; }
+.dp-fact-expand:hover { opacity: 1; }
 
 /* Dosage form modal */
 .dosage-overlay {
@@ -717,9 +746,9 @@ function truncate(s: string | null | undefined, n: number) {
   padding: 24px;
 }
 .dosage-modal {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
   width: 100%;
   max-width: 600px;
   box-shadow: 0 24px 64px rgba(0,0,0,0.6);
@@ -729,38 +758,38 @@ function truncate(s: string | null | undefined, n: number) {
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid var(--border);
 }
 .dosage-modal-title {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: #60a5fa;
+  color: var(--gold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .dosage-modal-close {
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--muted);
   font-size: 1rem;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
   transition: color 0.15s, background 0.15s;
 }
-.dosage-modal-close:hover { color: #f8fafc; background: #334155; }
+.dosage-modal-close:hover { color: var(--text); background: var(--border); }
 .dosage-modal-body {
   padding: 20px;
 }
 .dosage-modal-body p {
   font-size: 0.9rem;
   line-height: 1.8;
-  color: #94a3b8;
+  color: var(--text2);
   margin: 0 0 12px;
 }
 .dosage-modal-note {
   font-size: 0.72rem !important;
-  color: #475569 !important;
+  color: var(--muted) !important;
   margin: 0 !important;
   font-style: italic;
 }
@@ -796,11 +825,11 @@ function truncate(s: string | null | undefined, n: number) {
 }
 .dp-region-part {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #94a3b8;
-  min-width: 90px;
+  color: var(--text2);
+  min-width: 96px;
   flex-shrink: 0;
 }
 .dp-region-effect {
@@ -824,7 +853,7 @@ function truncate(s: string | null | undefined, n: number) {
 }
 .dp-footer p {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   color: var(--muted);
   letter-spacing: 0.05em;
   margin: 3px 0;

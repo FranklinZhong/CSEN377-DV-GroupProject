@@ -1,8 +1,8 @@
 <!--
-  AnatomyBody.vue — Vis 1 交互式解剖人体（v5.0）
-  - 与 AnatomyHero 统一：同一真实人体轮廓路径（420×780 viewBox）
-  - 解剖学准确器官：心脏4腔、肺叶分裂、J形胃、豆形肾、线圈肠
-  - viewMode / highlight / hover 逻辑完全保留
+  AnatomyBody.vue — Vis 1 interactive anatomical body (v5.0)
+  - Unified with AnatomyHero: same real body outline paths (420×780 viewBox)
+  - Anatomically accurate organs: 4-chamber heart, split lung lobes, J-stomach, bean kidneys, coiled intestines
+  - viewMode / highlight / hover logic fully preserved
 -->
 <template>
   <div class="anatomy-wrap" :class="{ 'reduce-motion': reduceMotion }">
@@ -27,8 +27,8 @@
       <defs>
         <!-- Holographic body fill -->
         <linearGradient id="ab-body-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="#0ea5e9" stop-opacity="0.07"/>
-          <stop offset="100%" stop-color="#0c4a6e" stop-opacity="0.03"/>
+          <stop offset="0%"   stop-color="#c9a84c" stop-opacity="0.07"/>
+          <stop offset="100%" stop-color="#5c3d0a" stop-opacity="0.03"/>
         </linearGradient>
 
         <!-- Organ base gradients (resting — slightly coloured so highlights read clearly) -->
@@ -41,8 +41,8 @@
           <stop offset="100%" stop-color="#7f1d1d" stop-opacity="0.35"/>
         </radialGradient>
         <radialGradient id="ab-lung" cx="0.5" cy="0.3" r="0.75">
-          <stop offset="0%"   stop-color="#38bdf8" stop-opacity="0.6"/>
-          <stop offset="100%" stop-color="#0c4a6e" stop-opacity="0.25"/>
+          <stop offset="0%"   stop-color="#c9a84c" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#5c3d0a" stop-opacity="0.25"/>
         </radialGradient>
         <radialGradient id="ab-liver" cx="0.35" cy="0.35" r="0.8">
           <stop offset="0%"   stop-color="#fbbf24" stop-opacity="0.7"/>
@@ -130,8 +130,8 @@
         c-1.352-3.432-4.809-11.201-6.031-14.295c-1.215-3.094-2.164-5.498-3.52-8.936c-1.35-3.434-2.494-7.354,1.014-9.525
         c3.51-2.174,7.818-0.303,12.412,0.27s10.975-0.35,12.566-3.357C385.108,440.35,380.246,439.092,375.86,438.039z"/>
 
-      <!-- ── Layer 2: Glowing outline (同首页) ── -->
-      <path class="ab-outline" fill="none" stroke="#38bdf8" stroke-width="1.6"
+      <!-- ── Layer 2: Glowing outline (same as hero page) ── -->
+      <path class="ab-outline" fill="none" stroke="#c9a84c" stroke-width="1.6"
         filter="url(#ab-outline-glow)"
         d="M375.86,438.039c-4.383-1.051-14.305-5.084-17.721-7.705c-3.414-2.625-9.121-5.25-10.98-10.928
         c-8.719-26.635-6.174-42.584-12.33-80.583c-3.279-20.259-10.594-38.978-12.291-49.546c-5.002-31.152,0.314-68.261-9.955-100.304
@@ -267,7 +267,7 @@
                 stroke="#ef4444" stroke-width="1.5" fill="none" opacity="0.6"/>
           <!-- Pulmonary trunk -->
           <path d="M219 233 Q215 220 213 213 Q210 205 201 203"
-                stroke="#60a5fa" stroke-width="1.2" fill="none" opacity="0.55"/>
+                stroke="#4a90c4" stroke-width="1.2" fill="none" opacity="0.55"/>
         </g>
 
         <!-- LUNGS: fit within chest cavity x=168-252 -->
@@ -278,7 +278,7 @@
           <!-- Left oblique fissure -->
           <path d="M201 228 Q187 256 175 292" stroke="#bae6fd" stroke-width="1" fill="none" opacity="0.45"/>
           <!-- Left bronchus -->
-          <path d="M201 236 Q190 248 180 264" stroke="#7dd3fc" stroke-width="1" fill="none" opacity="0.5"/>
+          <path d="M201 236 Q190 248 180 264" stroke="#e8c97a" stroke-width="1" fill="none" opacity="0.5"/>
 
           <!-- Right lung (3 lobes, x=220-252) -->
           <path d="M237 202 Q249 210 251 244 Q252 272 249 292 Q243 312 232 314 Q221 312 219 298 L219 215 Q225 198 237 202Z"
@@ -288,7 +288,7 @@
           <!-- Right oblique fissure -->
           <path d="M219 236 Q233 260 245 294" stroke="#bae6fd" stroke-width="1" fill="none" opacity="0.4"/>
           <!-- Right bronchus -->
-          <path d="M219 234 Q231 244 243 260" stroke="#7dd3fc" stroke-width="1" fill="none" opacity="0.5"/>
+          <path d="M219 234 Q231 244 243 260" stroke="#e8c97a" stroke-width="1" fill="none" opacity="0.5"/>
         </g>
 
         <!-- LIVER: right-biased wedge within torso boundary (x=178-252) -->
@@ -461,7 +461,7 @@
 import { computed } from 'vue'
 import type { Effect } from '../api/client'
 
-export type ViewMode = 'benefits' | 'side_effects' | 'both'
+export type ViewMode = 'benefits' | 'side_effects' | 'both' | 'neutral'
 
 const props = defineProps<{
   effects: Effect[]
@@ -479,9 +479,10 @@ const emit = defineEmits<{
 }>()
 
 const modeOpts = computed(() => [
+  { value: 'neutral'      as ViewMode, label: 'Overview',     color: '#60a5fa', count: undefined,          disabled: false },
   { value: 'benefits'     as ViewMode, label: 'Benefits',     color: '#4ade80', count: props.benefitCount, disabled: (props.benefitCount ?? 0) === 0 },
   { value: 'both'         as ViewMode, label: 'Both',         color: '#facc15', count: undefined,          disabled: false },
-  { value: 'side_effects' as ViewMode, label: 'Side Effects', color: '#f87171', count: props.sideCount,    disabled: (props.sideCount ?? 0) === 0 },
+  { value: 'side_effects' as ViewMode, label: 'Side Effects', color: '#ff2020', count: props.sideCount,    disabled: (props.sideCount ?? 0) === 0 },
 ])
 
 const effectMap = computed(() => {
@@ -495,7 +496,7 @@ const effectMap = computed(() => {
 })
 
 function matchesMode(e: Effect): boolean {
-  if (props.viewMode === 'both') return true
+  if (props.viewMode === 'both' || props.viewMode === 'neutral') return true
   if (props.viewMode === 'benefits') return e.effect_type === 'benefit'
   return e.effect_type === 'side_effect'
 }
@@ -503,8 +504,9 @@ function effectsAt(p: string): Effect[] { return effectMap.value.get(p) ?? [] }
 function maxSeverity(p: string): number {
   return effectsAt(p).reduce((acc, e) => Math.max(acc, ({high:3,medium:2,low:1,unknown:0}[e.severity as string] ?? 0)), 0)
 }
-function highlightType(p: string): 'none'|'benefit'|'side'|'both' {
+function highlightType(p: string): 'none'|'benefit'|'side'|'both'|'neutral' {
   const fx = effectsAt(p); if (!fx.length) return 'none'
+  if (props.viewMode === 'neutral') return 'neutral'
   const hasB = fx.some(e => e.effect_type === 'benefit')
   const hasSE = fx.some(e => e.effect_type === 'side_effect')
   return hasB && hasSE ? 'both' : hasB ? 'benefit' : 'side'
@@ -517,7 +519,7 @@ function organClass(p: string) {
 function organFilter(_p: string): string { return '' }
 function organStroke(p: string): string {
   const hl = highlightType(p)
-  return hl==='benefit'?'#4ade80': hl==='side'?'#f87171': hl==='both'?'#facc15':'#38bdf8'
+  return hl==='benefit'?'#4ade80': hl==='side'?'#ff2020': hl==='both'?'#facc15': hl==='neutral'?'#60a5fa':'#c9a84c'
 }
 function organHandlers(p: string) {
   return {
@@ -533,7 +535,7 @@ function organHandlers(p: string) {
 const hoveredColor = computed(() => {
   if (!props.hovered) return '#94a3b8'
   const hl = highlightType(props.hovered)
-  return hl === 'benefit' ? '#4ade80' : hl === 'side' ? '#f87171' : hl === 'both' ? '#facc15' : '#38bdf8'
+  return hl === 'benefit' ? '#4ade80' : hl === 'side' ? '#ff2020' : hl === 'both' ? '#facc15' : hl === 'neutral' ? '#60a5fa' : '#c9a84c'
 })
 
 const bpLabels: Record<string, string> = {
@@ -570,8 +572,9 @@ function bodyPartLabel(p: string): string {
 }
 .mode-btn:hover:not(:disabled) { background: #1e293b; color: #e2e8f0; }
 .mode-active { background: #1e293b; color: #f1f5f9; }
+.mode-active.mode-neutral      { box-shadow: inset 0 0 0 1px #1d4ed8; color: #60a5fa; }
 .mode-active.mode-benefits     { box-shadow: inset 0 0 0 1px #16a34a; color: #4ade80; }
-.mode-active.mode-side_effects { box-shadow: inset 0 0 0 1px #dc2626; color: #f87171; }
+.mode-active.mode-side_effects { box-shadow: inset 0 0 0 1px #cc0000; color: #ff2020; }
 .mode-active.mode-both         { box-shadow: inset 0 0 0 1px #b45309; color: #facc15; }
 .mode-disabled { opacity: 0.35; cursor: not-allowed; }
 .mode-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -584,7 +587,7 @@ function bodyPartLabel(p: string): string {
   height: 100%;
   max-height: 100%;
   display: block;
-  filter: drop-shadow(0 0 30px rgba(14,165,233,0.18));
+  filter: drop-shadow(0 0 30px rgba(201,168,76,0.18));
 }
 
 /* Outline breathe */
@@ -654,13 +657,13 @@ function bodyPartLabel(p: string): string {
           drop-shadow(0 0 18px rgba(34,197,94,.95)) drop-shadow(0 0 5px rgba(34,197,94,.5));
 }
 .organ-group.hl-side {
-  filter: grayscale(1) sepia(1) saturate(6) brightness(1.1)
-          drop-shadow(0 0 8px rgba(239,68,68,.65));
+  filter: grayscale(1) sepia(1) hue-rotate(330deg) saturate(8) brightness(1.1)
+          drop-shadow(0 0 10px rgba(255,32,32,.75));
 }
 .organ-group.hl-side.hovered,
 .organ-group.hl-side:not(.inactive):hover {
-  filter: grayscale(1) sepia(1) saturate(8) brightness(1.35)
-          drop-shadow(0 0 18px rgba(239,68,68,.95)) drop-shadow(0 0 5px rgba(239,68,68,.5));
+  filter: grayscale(1) sepia(1) hue-rotate(330deg) saturate(10) brightness(1.35)
+          drop-shadow(0 0 20px rgba(255,32,32,1)) drop-shadow(0 0 6px rgba(255,32,32,.6));
 }
 .organ-group.hl-both {
   filter: grayscale(1) sepia(1) hue-rotate(28deg) saturate(4) brightness(1.25)
@@ -671,22 +674,36 @@ function bodyPartLabel(p: string): string {
   filter: grayscale(1) sepia(1) hue-rotate(28deg) saturate(5) brightness(1.45)
           drop-shadow(0 0 18px rgba(245,158,11,.95));
 }
+.organ-group.hl-neutral {
+  filter: grayscale(1) sepia(1) hue-rotate(165deg) saturate(3) brightness(1.25)
+          drop-shadow(0 0 8px rgba(96,165,250,.65));
+}
+.organ-group.hl-neutral.hovered,
+.organ-group.hl-neutral:not(.inactive):hover {
+  filter: grayscale(1) sepia(1) hue-rotate(165deg) saturate(4) brightness(1.5)
+          drop-shadow(0 0 18px rgba(96,165,250,.95)) drop-shadow(0 0 5px rgba(96,165,250,.5));
+}
 
 @keyframes pulse-green {
   0%,100% { filter: grayscale(1) sepia(1) hue-rotate(90deg) saturate(4) brightness(1.35) drop-shadow(0 0 8px rgba(34,197,94,.65)); }
   50%     { filter: grayscale(1) sepia(1) hue-rotate(90deg) saturate(5) brightness(1.7) drop-shadow(0 0 22px rgba(34,197,94,1)); }
 }
 @keyframes pulse-red {
-  0%,100% { filter: grayscale(1) sepia(1) saturate(6) brightness(1.1) drop-shadow(0 0 8px rgba(239,68,68,.65)); }
-  50%     { filter: grayscale(1) sepia(1) saturate(9) brightness(1.5) drop-shadow(0 0 22px rgba(239,68,68,1)); }
+  0%,100% { filter: grayscale(1) sepia(1) hue-rotate(330deg) saturate(8) brightness(1.1) drop-shadow(0 0 10px rgba(255,32,32,.75)); }
+  50%     { filter: grayscale(1) sepia(1) hue-rotate(330deg) saturate(12) brightness(1.5) drop-shadow(0 0 24px rgba(255,32,32,1)); }
 }
 @keyframes pulse-amber {
   0%,100% { filter: grayscale(1) sepia(1) hue-rotate(28deg) saturate(4) brightness(1.25) drop-shadow(0 0 8px rgba(245,158,11,.65)); }
   50%     { filter: grayscale(1) sepia(1) hue-rotate(28deg) saturate(6) brightness(1.55) drop-shadow(0 0 22px rgba(245,158,11,1)); }
 }
-.pulse-strong.hl-benefit { animation: pulse-green 1.8s ease-in-out infinite; }
-.pulse-strong.hl-side    { animation: pulse-red   1.8s ease-in-out infinite; }
-.pulse-strong.hl-both    { animation: pulse-amber 1.8s ease-in-out infinite; }
+@keyframes pulse-neutral {
+  0%,100% { filter: grayscale(1) sepia(1) hue-rotate(165deg) saturate(3) brightness(1.25) drop-shadow(0 0 8px rgba(96,165,250,.65)); }
+  50%     { filter: grayscale(1) sepia(1) hue-rotate(165deg) saturate(5) brightness(1.6) drop-shadow(0 0 22px rgba(96,165,250,1)); }
+}
+.pulse-strong.hl-benefit { animation: pulse-green   1.8s ease-in-out infinite; }
+.pulse-strong.hl-side    { animation: pulse-red     1.8s ease-in-out infinite; }
+.pulse-strong.hl-both    { animation: pulse-amber   1.8s ease-in-out infinite; }
+.pulse-strong.hl-neutral { animation: pulse-neutral 1.8s ease-in-out infinite; }
 
 /* Organ hover panel */
 .hover-panel {

@@ -23,14 +23,14 @@ def drug_summary(
 ):
     """
     GET /api/drugs/{drug_id}
-    Summary Bar 数据：药品名、FDA 状态、适应症摘要、评分、风险等级、数据版本。
+    Summary Bar data: drug name, FDA status, indication summary, rating, risk level, data version.
     """
     drug = get_drug_by_id(drug_id, conn)
     if not drug:
         raise HTTPException(status_code=404,
             detail=err("DRUG_NOT_FOUND", f"Drug #{drug_id} not found."))
 
-    # 别名列表
+    # Alias list
     aliases = conn.execute(
         "SELECT alias FROM drug_aliases WHERE canonical_name = ? LIMIT 10",
         (drug["generic_name"] or drug["name"],),
@@ -84,8 +84,8 @@ def drug_overview(
 ):
     """
     GET /api/drugs/{drug_id}/overview  (v3.5)
-    Drug Overview 卡片：What it treats / How it works / Quick Facts / Key Indications。
-    数据来源：OpenFDA Drug Label（indication_summary / mechanism_of_action / dosage_form / route）。
+    Drug Overview card: What it treats / How it works / Quick Facts / Key Indications.
+    Data source: OpenFDA Drug Label (indication_summary / mechanism_of_action / dosage_form / route).
     """
     drug = get_drug_by_id(drug_id, conn)
     if not drug:
@@ -97,7 +97,7 @@ def drug_overview(
     dosage     = drug.get("dosage_form")
     route      = drug.get("route")
 
-    # 提取条目化 indications + 清洗 section 前缀
+    # Extract itemized indications and strip section header prefixes
     import re as _re
 
     def _strip_section_prefix(s: str | None) -> str | None:
@@ -225,7 +225,7 @@ def drug_benefits(
 ):
     """
     GET /api/drugs/{drug_id}/benefits
-    Vis 1 Benefits：来自 FDA Drug Label 的适应症 → body_part 映射。
+    Vis 1 Benefits: FDA Drug Label indications mapped to body_part.
     """
     rows = conn.execute(
         """
@@ -260,7 +260,7 @@ def drug_side_effects(
 ):
     """
     GET /api/drugs/{drug_id}/sideeffects
-    Vis 1 Side Effects：来自 FAERS 的不良事件 → body_part 映射。
+    Vis 1 Side Effects: FAERS adverse events mapped to body_part.
     """
     rows = conn.execute(
         """
@@ -328,7 +328,7 @@ def drug_reviews_list(
 ):
     """
     GET /api/drugs/{drug_id}/reviews/list  (v3.5)
-    分页 + 过滤 + 关键词搜索 + 排序的真实评论列表。
+    Paginated, filtered, keyword-searchable, sortable real patient review list.
     """
     # Build WHERE
     where = ["drug_id = ?"]
@@ -410,7 +410,7 @@ def drug_reviews(
 ):
     """
     GET /api/drugs/{drug_id}/reviews
-    Vis 3 Isotype：WebMD 评论按 body_part 聚类（positive/negative/mixed/neutral）。
+    Vis 3 Isotype: WebMD reviews clustered by body_part (positive/negative/mixed/neutral).
     """
     import json
 

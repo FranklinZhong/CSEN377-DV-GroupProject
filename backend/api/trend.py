@@ -25,11 +25,11 @@ def drug_trend(
     """
     GET /api/drugs/{drug_id}/trend
 
-    返回 Vis 2 时间轴数据：
-    - timeline: 按 (quarter, body_part) 的季度报告数 + 亮度 + CUSUM 信号
-    - signal_events: 触发 CUSUM 的季度列表（用于 ⚠ 标注）
+    Returns Vis 2 timeline data:
+    - timeline: quarterly report counts per (quarter, body_part) + brightness + CUSUM signal
+    - signal_events: quarters where CUSUM triggered (for ⚠ annotation)
 
-    数据来源：FDA FAERS API 在线查询（结果缓存 7 天）
+    Data source: live FDA FAERS API queries (results cached for 7 days)
     """
     drug = get_drug_by_id(drug_id, conn)
     if not drug:
@@ -48,7 +48,7 @@ def drug_trend(
     if result.get("_warning"):
         warnings.append(result["_warning"])
 
-    # 统计 signal 数量以确定 confidence
+    # Count signals to determine confidence level
     signals = [p for p in result.get("timeline", []) if p.get("signal_flag")]
     confidence = "high" if signals else "medium"
 

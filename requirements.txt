@@ -17,6 +17,7 @@ anthropic>=0.25          # Claude API (AI explanations)
 
 # ── Search & NLP ──────────────────────────────────────────────────────────────
 rapidfuzz>=3.0           # Fuzzy drug name matching (Levenshtein)
+scikit-learn>=1.4        # TF-IDF vectorizer for corpus NLP analysis
 
 # ── Dev / Testing ─────────────────────────────────────────────────────────────
 pytest>=8.0

@@ -1,29 +1,29 @@
 """
-faers_service.py  —  FAERS API 多年季度数据查询 + CUSUM 信号检测
+faers_service.py  —  FAERS API multi-year quarterly data query + CUSUM anomaly detection
 
-设计思路
---------
-本地 FAERS CSV（2024Q4 快照）只用于：
-  1. 找出某药的 top-N Preferred Terms（PT_NORM）
-  2. 用 BODY_PART_KEYWORDS 映射 PT → body_part
+Design
+------
+Local FAERS CSV (2024Q4 snapshot) is used only to:
+  1. Find top-N Preferred Terms (PT_NORM) for a drug
+  2. Map PT → body_part using BODY_PART_KEYWORDS
 
-时间演化数据（Vis 2）来自 FDA FAERS API 实时查询：
+Time-series data (Vis 2) comes from live FDA FAERS API queries:
   GET https://api.fda.gov/drug/event.json?
       search=patient.drug.openfda.generic_name:"metformin"
              AND patient.reaction.reactionmeddrapt:"NAUSEA"
       &count=receivedate&limit=1000
 
-调用流程
---------
+Call flow
+---------
 get_trend_data(drug_name, drug_id, conn)
-  ├─ 检查 api_cache → 命中直接返回
-  ├─ _get_top_pts_local()      从本地 CSV 取 top PT
-  ├─ _pts_to_body_map()        PT → body_part 分组
-  ├─ _fetch_body_timeline()    per body_part 并发 API 请求
+  ├─ check api_cache → return cached result if hit
+  ├─ _get_top_pts_local()      load top PTs from local CSV
+  ├─ _pts_to_body_map()        group PTs by body_part
+  ├─ _fetch_body_timeline()    concurrent API requests per body_part
   │   └─ _query_faers_api()    → {quarter: count}
-  ├─ _fill_missing_quarters()  补齐空季度
-  ├─ _cusum_detect()           标注 signal_flag
-  └─ 写 api_cache，返回结果
+  ├─ _fill_missing_quarters()  fill empty quarters with zero
+  ├─ _cusum_detect()           annotate signal_flag
+  └─ write api_cache, return result
 """
 
 import asyncio
@@ -38,18 +38,18 @@ from typing import Literal
 import httpx
 import pandas as pd
 
-# 引入 pipeline 的关键词映射
+# Import body-part keyword mapping from pipeline
 _PIPELINE = Path(__file__).parent.parent.parent / "pipeline"
 sys.path.insert(0, str(_PIPELINE))
 from soc_body_map import BODY_PART_KEYWORDS
 
-# 引入缓存工具
+# Import cache utilities
 from .cache_service import get_cached, set_cached
 
-# ── 常量 ──────────────────────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 
 FAERS_API = "https://api.fda.gov/drug/event.json"
-FDA_API_KEY = os.getenv("FDA_API_KEY", "")          # 有 key → 240 req/min，无 → 40 req/min
+FDA_API_KEY = os.getenv("FDA_API_KEY", "")          # with key → 240 req/min, without → 40 req/min
 
 _FAERS_CSV = (
     Path(__file__).parent.parent.parent
@@ -57,16 +57,16 @@ _FAERS_CSV = (
     / "cleaned_faers_signals_prr_ror.csv"
 )
 
-# 每个 body_part 最多取几个代表 PT 去查 API
+# Max representative PTs per body_part to query via API
 _MAX_PT_PER_BODY = 2
-# 时间轴起始年份
+# Timeline start year
 _START_YEAR = 2014
-# CUSUM slack 倍数（mean 的多少倍算 slack）
+# CUSUM slack multiplier (fraction of mean counted as slack)
 _CUSUM_K = 0.5
-# CUSUM 触发阈值（超过 mean 的多少倍触发 signal）
+# CUSUM trigger threshold (multiple of mean to trigger signal)
 _CUSUM_THRESHOLD = 3.0
 
-# SVG 区域映射（与 v3.0 文档第3章一致）
+# SVG region mapping
 _BODY_TO_SVG: dict[str, str] = {
     "brain":       "nervous_system",
     "eye":         "ophthalmologic_system",
@@ -86,13 +86,13 @@ _BODY_TO_SVG: dict[str, str] = {
 }
 
 
-# ── 公开入口 ──────────────────────────────────────────────────────────────────
+# ── Public entry point ────────────────────────────────────────────────────────
 
 def get_trend_data(drug_name: str, drug_id: int, conn) -> dict:
     """
-    主入口：返回 Vis 2 所需的完整时间轴数据。
+    Main entry: returns complete timeline data required for Vis 2.
 
-    返回格式:
+    Return format:
     {
       "timeline": [TrendPoint, ...],
       "signal_events": [SignalEvent, ...]
@@ -109,7 +109,7 @@ def get_trend_data(drug_name: str, drug_id: int, conn) -> dict:
     if cached:
         return cached
 
-    # 1. 取本地 top PTs
+    # 1. Load top PTs from local FAERS data
     top_pts = _get_top_pts_local(drug_name)
     if not top_pts:
         result = {"timeline": [], "signal_events": [],
@@ -117,13 +117,13 @@ def get_trend_data(drug_name: str, drug_id: int, conn) -> dict:
         set_cached(cache_key, result, conn, ttl_days=1)
         return result
 
-    # 2. PT → body_part 分组
+    # 2. Group PTs by body_part
     body_pt_map = _pts_to_body_map(top_pts)
 
-    # 3. 并发查 API（每 body_part 取 top-2 PT）
+    # 3. Concurrently query API (top-2 PTs per body_part)
     raw_timelines = asyncio.run(_fetch_all_body_timelines(drug_name, body_pt_map))
 
-    # 4. 组装成统一季度列表
+    # 4. Assemble unified quarterly timeline
     all_quarters = _generate_quarters(_START_YEAR)
     timeline: list[dict] = []
     signal_events: list[dict] = []
@@ -155,7 +155,7 @@ def get_trend_data(drug_name: str, drug_id: int, conn) -> dict:
             timeline.append(point)
 
             if signals[i] and count > 0:
-                # 计算与前一季度相比的增幅
+                # Calculate percent increase vs prior quarter
                 prev = counts_list[i - 1] if i > 0 else 0
                 increase_pct = (
                     round((count - prev) / prev * 100) if prev > 0 else None
@@ -172,12 +172,12 @@ def get_trend_data(drug_name: str, drug_id: int, conn) -> dict:
     return result
 
 
-# ── 本地 FAERS 数据（top PT 提取） ───────────────────────────────────────────
+# ── Local FAERS data (top PT extraction) ─────────────────────────────────────
 
 def _get_top_pts_local(drug_name: str, top_n: int = 30) -> list[tuple[str, int]]:
     """
-    从本地 FAERS CSV 取该药 top-N PT（按 n_reports 降序）。
-    返回 [(pt_norm, n_reports), ...]
+    Load top-N PTs for a drug from local FAERS CSV (sorted by n_reports desc).
+    Returns [(pt_norm, n_reports), ...]
     """
     if not _FAERS_CSV.exists():
         return []
@@ -190,7 +190,7 @@ def _get_top_pts_local(drug_name: str, top_n: int = 30) -> list[tuple[str, int]]
         drug_upper = drug_name.upper().strip()
         subset = df[df["DRUGNAME_NORM"].str.upper() == drug_upper]
         if subset.empty:
-            # 尝试 contains 模糊匹配
+            # Fall back to contains partial match
             subset = df[df["DRUGNAME_NORM"].str.upper().str.contains(
                 re.escape(drug_upper), na=False
             )]
@@ -208,12 +208,12 @@ def _get_top_pts_local(drug_name: str, top_n: int = 30) -> list[tuple[str, int]]
         return []
 
 
-# ── PT → body_part 分组 ───────────────────────────────────────────────────────
+# ── PT → body_part grouping ───────────────────────────────────────────────────
 
 def _pts_to_body_map(top_pts: list[tuple[str, int]]) -> dict[str, list[str]]:
     """
-    将 top PT 按 body_part 分组，每组取 top-_MAX_PT_PER_BODY 个。
-    返回 {body_part: [pt1, pt2]}
+    Group top PTs by body_part, keeping top-_MAX_PT_PER_BODY per group.
+    Returns {body_part: [pt1, pt2]}
     """
     body_pt_counts: dict[str, list[tuple[int, str]]] = defaultdict(list)
 
@@ -231,21 +231,21 @@ def _pts_to_body_map(top_pts: list[tuple[str, int]]) -> dict[str, list[str]]:
 
     result: dict[str, list[str]] = {}
     for body_part, items in body_pt_counts.items():
-        items.sort(reverse=True)  # 按报告数降序
+        items.sort(reverse=True)  # Sort descending by report count
         result[body_part] = [pt for _, pt in items[:_MAX_PT_PER_BODY]]
 
     return result
 
 
-# ── FAERS API 查询（异步） ────────────────────────────────────────────────────
+# ── FAERS API query (async) ───────────────────────────────────────────────────
 
 async def _fetch_all_body_timelines(
     drug_name: str,
     body_pt_map: dict[str, list[str]],
 ) -> dict[str, dict[str, int]]:
     """
-    并发查询所有 body_part 的 API，合并每个 body_part 下多个 PT 的结果。
-    返回 {body_part: {quarter: total_count}}
+    Concurrently query API for all body_parts and merge results across PTs.
+    Returns {body_part: {quarter: total_count}}
     """
     tasks = []
     keys = []
@@ -267,7 +267,7 @@ async def _fetch_all_body_timelines(
 
 async def _query_faers_api(drug_name: str, pt: str) -> dict[str, int]:
     """
-    查询 FDA FAERS API，返回 {quarter: count}。
+    Query FDA FAERS API and return {quarter: count}.
     e.g. {"2018Q1": 45, "2019Q3": 82, ...}
     """
     search = (
@@ -302,7 +302,7 @@ async def _query_faers_api(drug_name: str, pt: str) -> dict[str, int]:
     return dict(quarterly)
 
 
-# ── 工具函数 ──────────────────────────────────────────────────────────────────
+# ── Utility functions ─────────────────────────────────────────────────────────
 
 def _date_to_quarter(date_str: str) -> str | None:
     """'20190315' → '2019Q1'"""
@@ -315,7 +315,7 @@ def _date_to_quarter(date_str: str) -> str | None:
 
 
 def _generate_quarters(start_year: int) -> list[str]:
-    """生成从 start_year Q1 到当前季度的所有季度列表。"""
+    """Generate all quarters from start_year Q1 to the current quarter."""
     now = datetime.utcnow()
     current_q = (now.month - 1) // 3 + 1
     quarters = []
@@ -330,21 +330,21 @@ def _generate_quarters(start_year: int) -> list[str]:
 def _fill_missing_quarters(
     data: dict[str, int], all_quarters: list[str]
 ) -> dict[str, int]:
-    """确保所有季度都有条目，缺失的填 0。"""
+    """Ensure all quarters have an entry; fill missing with 0."""
     return {q: data.get(q, 0) for q in all_quarters}
 
 
 def _cusum_detect(counts: list[int]) -> list[bool]:
     """
-    简单 CUSUM 单侧检测（上升信号）。
-    signal = True 表示该季度累计偏差超过阈值，可能是不良事件爆发。
+    One-sided CUSUM detection (rising signal).
+    signal = True means cumulative deviation exceeded threshold for that quarter.
     """
     n = len(counts)
     if n == 0 or all(c == 0 for c in counts):
         return [False] * n
 
     reference = sum(counts) / n
-    k = reference * _CUSUM_K          # slack：低于 (mean + k) 不累积
+    k = reference * _CUSUM_K          # slack: no accumulation below (mean + k)
     threshold = reference * _CUSUM_THRESHOLD
 
     cumsum = 0.0

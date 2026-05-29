@@ -1,39 +1,39 @@
 <!--
-  BodyMap.vue — Vis 1 透明人体高亮（改版）
+  BodyMap.vue — Vis 1 transparent body highlight
 
-  改动：
-  - 用贝塞尔曲线路径替代矩形/椭圆，人体轮廓更自然
-  - 器官使用解剖学合理位置
-  - drop-shadow CSS glow（Safari 兼容）
-  - 默认显示 sideeffects（益处数据当前为空）
-  - 未激活器官可见度提升到 0.15
+  Changes:
+  - Bezier curve paths instead of rect/ellipse for a more natural body outline
+  - Anatomically accurate organ positions
+  - drop-shadow CSS glow (Safari-compatible)
+  - Defaults to showing side effects (benefit data currently sparse)
+  - Inactive organ opacity raised to 0.15
 -->
 <template>
   <div class="body-map" :class="{ 'reduce-motion': reduceMotion }">
 
     <svg viewBox="0 0 240 520" xmlns="http://www.w3.org/2000/svg" class="body-svg">
-      <!-- ── 人体轮廓（纯装饰，不可交互） ── -->
-      <!-- 头 -->
+      <!-- ── Body outline (decorative, non-interactive) ── -->
+      <!-- Head -->
       <ellipse cx="120" cy="52" rx="38" ry="42" class="body-base"/>
-      <!-- 颈 -->
+      <!-- Neck -->
       <rect x="109" y="91" width="22" height="20" rx="5" class="body-base"/>
-      <!-- 躯干（弧形路径）-->
+      <!-- Torso (curved path) -->
       <path d="M70 110 Q50 125 46 210 Q44 250 68 258 L120 264 L172 258 Q196 250 194 210 Q190 125 170 110 Q148 104 120 102 Q92 104 70 110 Z"
             class="body-base"/>
-      <!-- 左臂 -->
+      <!-- Left arm -->
       <path d="M68 118 Q42 138 34 210 Q30 240 36 265 Q40 280 46 265 Q50 240 52 210 Q58 148 76 128 Z"
             class="body-base"/>
-      <!-- 右臂 -->
+      <!-- Right arm -->
       <path d="M172 118 Q198 138 206 210 Q210 240 204 265 Q200 280 194 265 Q190 240 188 210 Q182 148 164 128 Z"
             class="body-base"/>
-      <!-- 左腿 -->
+      <!-- Left leg -->
       <path d="M72 258 Q64 295 60 360 Q56 405 60 450 Q63 470 72 450 Q76 415 78 360 Q80 300 88 262 Z"
             class="body-base"/>
-      <!-- 右腿 -->
+      <!-- Right leg -->
       <path d="M168 258 Q176 295 180 360 Q184 405 180 450 Q177 470 168 450 Q164 415 162 360 Q160 300 152 262 Z"
             class="body-base"/>
 
-      <!-- ── 器官区域（可交互，显示高亮） ── -->
+      <!-- ── Organ regions (interactive, highlight on hover) ── -->
 
       <!-- Brain -->
       <ellipse cx="120" cy="42" rx="28" ry="28"
