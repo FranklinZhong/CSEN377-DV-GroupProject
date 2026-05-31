@@ -270,27 +270,163 @@ Open [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## Data Processing Methods
+## Data Preprocessing Pipeline
 
-### NLP — VADER Sentiment Analysis
+The raw data from three sources goes through a multi-stage cleaning and integration pipeline before being stored in the SQLite database. All scripts are in `pipeline/` and can be re-run independently.
 
-All 287,256 WebMD reviews are scored with [VADER](https://github.com/cjhutto/vaderSentiment) (Valence Aware Dictionary and sEntiment Reasoner), a rule-based sentiment model optimized for social text. Each review produces a compound score mapped to `positive / neutral / negative`. Results are aggregated per `(drug × body_system)` pair and stored in `review_clusters`.
+### Stage 1 — WebMD Drug Reviews (`clean_webmd_reviews.py`)
 
-### NLP — TF-IDF Corpus Analysis
+**Input:** `WebMD Drug Reviews Dataset.zip` (~4.2 M rows)
 
-For the homepage Symptom Atlas, reviews are grouped by body system and a standard TF-IDF matrix is computed across all review tokens. The top-15 terms per system (by TF-IDF weight, stopwords and drug names removed) populate `corpus_tfidf`. This surfaces patient vocabulary that is *distinctive* to each system rather than globally frequent words.
+| Step | Action |
+|------|--------|
+| Deduplication | Drop fully duplicated rows |
+| Date parsing | Convert `Date` column to `datetime`; extract `review_year` and `review_month` |
+| Numeric validation | Cast `EaseofUse`, `Effectiveness`, `Satisfaction`, `UsefulCount` to numeric; filter ratings outside [1, 5]; remove negative `UsefulCount` |
+| Missing values | Fill remaining numeric NaN with column median |
+| Text cleaning | Remove URLs, HTML tags, and extra whitespace from `Reviews` and `Sides` fields |
+| Category normalization | Lowercase and strip `Drug`, `Condition`, `Sex`, `Age` columns |
+| Length filter | Drop reviews with fewer than **10 words** (single-word or near-empty entries provide no NLP signal) |
+| Feature engineering | Add `review_length` (character count) and `word_count` derived columns |
 
-### Anomaly Detection — CUSUM
+**Output:** `cleaned_webmd_reviews.csv` (~287,000 rows retained)
 
-Vis 2 uses a Cumulative Sum (CUSUM) control chart to flag quarters where adverse event report counts deviate significantly from a drug's historical baseline. For each `(drug, body_system)` time series, a CUSUM upper-side statistic is computed with a slack parameter *k* = 0.5σ and a threshold *h* = 4σ. Cells that exceed the threshold get `signal_flag = 1` in `faers_signals` and are rendered with a red border in the heatmap.
+---
 
-### Correlation — Pearson Co-activation Matrix
+### Stage 2 — FAERS Signal Dataset (`clean_faers_signals.py`)
 
-Below the FAERS heatmap, a Pearson correlation matrix shows which pairs of body systems tend to spike together across years. Annual report counts (summed per system per year) are used as the time series. The matrix is only shown when ≥ 2 body systems have data and ≥ 3 years of observations exist to make the correlation meaningful.
+**Input:** `FAERS Drug Event Signal Dataset.zip` — two CSVs: `faers_drug_event_counts.csv` and `faers_signals_prr_ror.csv`
 
-### Drug Name Normalization
+**Drug-event counts table:**
 
-The search index (`drug_search_index`) stores both brand names and generic names. Queries are matched against both fields with fuzzy prefix search. Drugs are ranked by `data_quality` (`full` → `partial` → `limited`) so results with complete openFDA label data and ≥ 50 reviews surface first.
+| Step | Action |
+|------|--------|
+| Column standardization | Strip whitespace from column names |
+| Drug / term cleaning | Uppercase, remove invisible characters and control characters from `DRUGNAME_NORM` and `PT_NORM` |
+| Quarter parsing | Parse `YYYYQ#` format → derive `report_year`, `report_quarter`, `quarter_start_date` |
+| Numeric validation | Cast `n_reports` to numeric; remove negative or non-numeric values |
+| Row filtering | Drop rows missing any key identifier (`DRUGNAME_NORM`, `PT_NORM`, `QTR`, `n_reports`) |
+| Deduplication + aggregation | Drop exact duplicates; sum `n_reports` for any remaining duplicate drug–event–quarter records |
+| Feature engineering | Add `log_n_reports` (log₁ₚ transform for skewed counts) and composite `drug_event_key` |
+
+**PRR/ROR signals table** (same cleaning steps, plus):
+
+| Step | Action |
+|------|--------|
+| Signal metrics | Cast `A`, `B`, `C`, `D`, `PRR`, `ROR` to numeric; remove infinite or negative values |
+| Pharmacovigilance flags | Apply standard disproportionality screening: `PRR_signal` = (A ≥ 3 AND PRR ≥ 2); `ROR_signal` = (A ≥ 3 AND ROR ≥ 2); `any_signal` = either flag |
+| Log transforms | Add `log_PRR` and `log_ROR` for downstream visualization |
+| Cross-table join | Merge `n_reports` from the cleaned counts table on drug–event–quarter key |
+
+> **Note:** PRR (Proportional Reporting Ratio) and ROR (Reporting Odds Ratio) are standard pharmacovigilance disproportionality metrics. A signal means the drug–event pair is reported more often than expected by chance — it does not imply causation.
+
+---
+
+### Stage 3 — OpenFDA Drug Labels (`clean_openfda_streaming.py`)
+
+**Input:** 13 ZIP files (~1.82 GB) downloaded from `download.open.fda.gov`
+
+The label ZIPs contain large JSON arrays (one record per drug label). Because loading all files into memory would require ~8 GB RAM, the cleaner uses a **streaming pass**:
+
+| Step | Action |
+|------|--------|
+| Streaming parse | Read one JSON object at a time from each ZIP; never load a full ZIP into memory |
+| Latest-version dedup | When multiple SPL submissions exist for the same `set_id`, keep only the most recent version |
+| Field extraction | Extract structured fields: `brand_name`, `generic_name`, `manufacturer_name`, `application_number`, `product_type`, `route` from the `openfda` block; extract free-text sections: `indications_and_usage`, `mechanism_of_action`, `dosage_and_administration`, `adverse_reactions`, `warnings`, `contraindications` |
+| Format validation | Validate NDC codes (regex), GUID format (`set_id`, `spl_id`), 8-digit date strings |
+| Array flattening | Convert list-valued openFDA fields (e.g. `brand_name` lists) to first-item scalars for relational storage |
+
+**Output:** per-drug CSV/JSON files → `fill_indication_summary.py` reads these and writes `indication_summary`, `mechanism`, `dosage`, `route` fields into the `drugs` table.
+
+---
+
+### Stage 4 — Drug Name Cross-Dataset Normalization (`build_drug_aliases.py`)
+
+Raw exact-match overlap between FAERS and WebMD drug names is only **15.3%** due to:
+
+- Case: FAERS uses ALL-CAPS (`METFORMIN`), WebMD uses mixed case (`Metformin`)
+- Brand vs. generic: `Glucophage` vs. `Metformin`
+- Suffix variants: `lisinopril` / `lisinopril hcl` / `lisinopril 10mg`
+- Abbreviations: `Humira` vs. `ADALIMUMAB`
+
+**Resolution strategy (three layers):**
+
+1. **`normalize()`** — lowercase → strip common pharmaceutical suffixes (`hcl`, `hydrochloride`, `sodium`, dose units) → remove parenthetical content
+2. **Brand → generic dictionary** — hand-curated mapping of common brand names to their INN generic names
+3. **RapidFuzz fuzzy match** — token-set-ratio similarity (threshold 90) covers remaining spelling variants and truncations
+
+Results are stored in the `drug_aliases` table and used at query time so searches for "Advil" correctly resolve to ibuprofen's data.
+
+---
+
+### Stage 5 — NLP: Body-Part Extraction (`nlp_webmd.py` + `soc_body_map.py`)
+
+Each WebMD review is scanned for mentions of any of the 15 body systems using a **keyword vocabulary** (`soc_body_map.py`):
+
+- Keywords cover US English, British English (MedDRA uses British spellings), and Latin MedDRA Preferred Terms
+- Mapping follows the [MedDRA System Organ Class (SOC)](https://www.meddra.org/) hierarchy — e.g. "Cardiac disorders" SOC → `heart`; "Nervous system disorders" + "Psychiatric disorders" → `brain`
+- FAERS adverse event terms (`PT_NORM`) are matched to body parts using the same SOC mapping
+
+This produces the `drug_body_effects` table (for Vis 1) and `reviews.extracted_body_parts` (for Vis 3).
+
+---
+
+### Stage 6 — NLP: VADER Sentiment Analysis (`nlp_webmd.py`)
+
+All 287,256 reviews are scored with **VADER** (Valence Aware Dictionary and sEntiment Reasoner), a lexicon- and rule-based model designed for social-media text. VADER handles negation, intensifiers, emoticons, and punctuation emphasis without requiring a trained ML model.
+
+- Each review's compound score (−1 to +1) is mapped: compound ≥ 0.05 → `positive`; ≤ −0.05 → `negative`; else `neutral`
+- Scores are aggregated per `(drug × body_system)` pair → `review_clusters` table stores `pos_count`, `neg_count`, `neutral_count`, `top_terms`, and representative quote samples
+
+---
+
+### Stage 7 — TF-IDF Corpus Analysis (`nlp_corpus_analysis.py`)
+
+For the homepage **Symptom Atlas**, each body system is treated as a single "document" composed of all `top_terms` from its `review_clusters` rows. Standard TF-IDF is applied across these 15 documents:
+
+- **TF** (Term Frequency) = term count within a body system / total terms in that system
+- **IDF** (Inverse Document Frequency) = log(N / df) where N = 15 body systems, df = number of systems containing the term
+- Custom stopword list removes generic drug/review vocabulary (`"side"`, `"effect"`, `"medication"`, `"pain"`, `"feel"`) and body-part name tokens themselves (trivially high TF but no discriminative value)
+- Top-15 terms per system by TF-IDF weight are stored in `corpus_tfidf` and drive the word cloud font sizing
+- Full cross-system matrix is stored in `corpus_heatmap` for potential heatmap extensions
+
+---
+
+### Stage 8 — CUSUM Anomaly Detection (`faers_service.py`)
+
+When FAERS trend data is fetched for Vis 2, the backend applies a **CUSUM (Cumulative Sum) control chart** to each `(drug, body_system)` quarterly time series:
+
+- Upper-side CUSUM: Sₜ = max(0, Sₜ₋₁ + (xₜ − μ) − k)
+- Slack parameter k = 0.5σ; alarm threshold h = 4σ (both computed from the drug's full history for that system)
+- Quarters where Sₜ > h get `signal_flag = 1` → rendered as red-bordered cells in the heatmap
+
+---
+
+### Stage 9 — Pearson Co-activation Correlation
+
+After loading FAERS time series data, the backend computes a **Pearson correlation matrix** across all body systems that have data for the queried drug:
+
+- Each system's annual report counts form a time series vector
+- `scipy.stats.pearsonr` is applied pairwise; only pairs with ≥ 3 overlapping years are included
+- The resulting matrix is returned as part of the `/api/drugs/{id}/trend` response and rendered below the heatmap in Vis 2
+
+---
+
+### Database Summary
+
+All stages write into a single SQLite file (`data/processed/medinsight.db`, ~152 MB):
+
+| Table | Rows | Description |
+|-------|------|-------------|
+| `drugs` | 8,689 | Drug catalog with openFDA metadata |
+| `drug_body_effects` | — | Per-organ benefit / side-effect records |
+| `drug_aliases` | — | Brand ↔ generic cross-reference |
+| `reviews` | 287,256 | Cleaned WebMD reviews with sentiment + body parts |
+| `review_clusters` | 54,324 | Aggregated drug × body_part × sentiment with top terms |
+| `faers_signals` | — | Quarterly FAERS report counts + CUSUM signal flags |
+| `corpus_tfidf` | 225 | 15 systems × top-15 TF-IDF terms (word cloud data) |
+| `corpus_heatmap` | — | Full cross-system TF-IDF matrix |
+| `corpus_sentiment` | 15 | Per-system positive / negative / neutral distribution |
 
 ---
 
