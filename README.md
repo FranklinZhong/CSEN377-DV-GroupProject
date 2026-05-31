@@ -16,7 +16,7 @@ Drug Visualization Platform | CSEN 377 Data Visualization, SCU Spring 2026
 - **FAERS Adverse Event Heatmap** — Static XY heatmap (X = year, Y = body system) with row-wise color normalization, CUSUM spike detection, missing-data stripe pattern, and a Pearson co-activation correlation matrix
 - **Patient Sentiment Tug-of-War** — Visual balance of positive vs. negative reviews per body system; rope position = net sentiment ratio; click any row to open a paginated review drawer
 - **Smart Search** — 8,000+ drugs ranked by data quality; A–Z browser; body-part filter tab
-- **TF-IDF Word Cloud** — Homepage anatomy-silhouette word cloud: patient vocabulary terms shaped to the body outline, colored by body system, placed beside the anatomy hero
+- **Symptom Atlas (Homepage)** — SVG anatomy-silhouette word cloud with 15 organ zones; top patient-reported terms per system extracted via TF-IDF from 287K WebMD reviews; words colored by body system and packed with a spiral layout algorithm
 
 ---
 
@@ -228,28 +228,75 @@ Open [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## Three Visualizations
+## Visualizations
 
-| # | Question | Component | Data Source |
-|---|----------|-----------|-------------|
-| Vis 1 | Which organs does this drug affect? | `AnatomyBody.vue` | openFDA labels + FAERS |
-| Vis 2 | How have adverse events changed over time? | `TrendAnimation.vue` | FDA FAERS API (quarterly, 2004–present) |
-| Vis 3 | What do patients say about their experience? | `TugOfWarChart.vue` | WebMD reviews (VADER NLP) |
+| # | Page | Question | Component | Data Source |
+|---|------|----------|-----------|-------------|
+| Homepage | Home | What symptoms do patients report by body system? | `CorpusWordCloud.vue` | WebMD reviews (TF-IDF NLP) |
+| Vis 1 | Drug detail | Which organs does this drug affect? | `AnatomyBody.vue` | openFDA labels + FAERS |
+| Vis 2 | Drug detail | How have adverse events changed over time? | `TrendAnimation.vue` | FDA FAERS API (quarterly, 2004–present) |
+| Vis 3 | Drug detail | What do patients say about their experience? | `TugOfWarChart.vue` | WebMD reviews (VADER NLP) |
 
-### Vis 2 — FAERS Heatmap Details
+### Homepage — Symptom Atlas (CorpusWordCloud)
 
-- **XY layout**: years on X-axis, body systems on Y-axis
-- **Row-wise normalization**: each body system's color scale is independent, so rare and frequent systems are both visible
-- **Three cell states**: colored (reports exist) · striped (data gap in API) · dark (zero reports confirmed)
-- **CUSUM signals**: cells with statistically unusual spikes get a red border
+- **SVG anatomy silhouette** with 15 independent organ zones (brain, heart, liver, kidney, …) each rendered as a labeled bounding box
+- **Dashed connectors** link each zone box to its anchor point on the body outline
+- **TF-IDF vocabulary**: top patient-reported terms per body system, extracted from 287K WebMD reviews; word font size scales with TF-IDF score
+- **Organ-colored words**: each zone uses its system's accent color, making cross-system patterns immediately visible
+- **Spiral packing**: a custom `placeWordsInBBox` algorithm places words without overlap inside each zone's bounding box
+
+### Vis 1 — Interactive Anatomy Map (AnatomyBody)
+
+- **15 clickable organ regions** on a 420×780 SVG body figure
+- **Four modes**: benefits (green glow), side effects (red glow), both (amber), neutral (no highlight)
+- **Hover panel**: organ name + count of effects for the hovered region
+- **Cross-visualization link**: clicking an organ in Vis 1 highlights the matching row in Vis 2
+
+### Vis 2 — FAERS Adverse Event Heatmap (TrendAnimation)
+
+- **XY layout**: years on X-axis (2004–present), body systems on Y-axis
+- **Row-wise normalization**: each body system's color scale is independent (YlOrRd palette), so rare and frequent systems are both visible
+- **Three cell states**: colored (reports exist) · diagonal stripe (data gap) · dark (zero reports confirmed)
+- **CUSUM signals**: cells with statistically unusual report spikes get a red border
 - **Co-activation matrix**: Pearson correlation of annual report counts across body systems (shown when ≥ 2 systems and ≥ 3 years of data)
-- **Row highlight**: click a row to pin it; hovering an organ in the anatomy map also highlights the corresponding row
+- **Row highlight**: click a row to pin it; hovering an organ in Vis 1 highlights the corresponding Vis 2 row
+
+### Vis 3 — Patient Sentiment Tug-of-War (TugOfWarChart)
+
+- **Rope metaphor**: SVG rope per body system; knot position maps to net sentiment ratio (positive − negative reviews)
+- **Net sentiment color**: knot color transitions from red (negative) through neutral to green (positive)
+- **Review drawer**: clicking any row opens a paginated side drawer (`ReviewList`) with representative patient quotes, filtered by body system
+- **Top terms**: each row surfaces the 5 most frequent patient vocabulary terms for that system
+
+---
+
+## Data Processing Methods
+
+### NLP — VADER Sentiment Analysis
+
+All 287,256 WebMD reviews are scored with [VADER](https://github.com/cjhutto/vaderSentiment) (Valence Aware Dictionary and sEntiment Reasoner), a rule-based sentiment model optimized for social text. Each review produces a compound score mapped to `positive / neutral / negative`. Results are aggregated per `(drug × body_system)` pair and stored in `review_clusters`.
+
+### NLP — TF-IDF Corpus Analysis
+
+For the homepage Symptom Atlas, reviews are grouped by body system and a standard TF-IDF matrix is computed across all review tokens. The top-15 terms per system (by TF-IDF weight, stopwords and drug names removed) populate `corpus_tfidf`. This surfaces patient vocabulary that is *distinctive* to each system rather than globally frequent words.
+
+### Anomaly Detection — CUSUM
+
+Vis 2 uses a Cumulative Sum (CUSUM) control chart to flag quarters where adverse event report counts deviate significantly from a drug's historical baseline. For each `(drug, body_system)` time series, a CUSUM upper-side statistic is computed with a slack parameter *k* = 0.5σ and a threshold *h* = 4σ. Cells that exceed the threshold get `signal_flag = 1` in `faers_signals` and are rendered with a red border in the heatmap.
+
+### Correlation — Pearson Co-activation Matrix
+
+Below the FAERS heatmap, a Pearson correlation matrix shows which pairs of body systems tend to spike together across years. Annual report counts (summed per system per year) are used as the time series. The matrix is only shown when ≥ 2 body systems have data and ≥ 3 years of observations exist to make the correlation meaningful.
+
+### Drug Name Normalization
+
+The search index (`drug_search_index`) stores both brand names and generic names. Queries are matched against both fields with fuzzy prefix search. Drugs are ranked by `data_quality` (`full` → `partial` → `limited`) so results with complete openFDA label data and ≥ 50 reviews surface first.
 
 ---
 
 ## Testing
 
-The project has a 237-test suite covering all three visualization layers:
+The project has a 237-test suite covering all four visualization layers:
 
 ```bash
 # Backend unit + integration tests (61 tests)
@@ -264,13 +311,13 @@ cd frontend && npm run build
 
 | Layer | Tests | Coverage |
 |-------|-------|----------|
-| Backend API (pytest) | 61 | All endpoints: search, drugs, trend, health, reviews |
+| Backend API (pytest) | 61 | All endpoints: search, drugs, trend, health, reviews, corpus |
 | Frontend logic — Vis 1 | 52 | highlightType, maxSeverity, organStroke, effectsAt |
 | Frontend logic — Vis 2 | 51 | yearData, pearson, correlationData, getActiveRow, cellFill |
 | Frontend logic — Vis 3 | 53 | netSentiment, knotX/R, ropeWidth, centerColor, topTerms |
-| Component integration | 17 | mount + emit + API mock for all 3 visualizations |
-| Word cloud — CorpusWordCloud | 6 | SVG atlas render, loading/error states, TF-IDF API integration |
-| Word cloud — wordCloudLayout | 9 | placeWordsInBBox spiral packing, collision detection, font scaling |
+| Component integration | 17 | mount + emit + API mock for all 4 visualizations |
+| Symptom Atlas — CorpusWordCloud | 6 | SVG atlas render, loading/error states, TF-IDF API integration |
+| Symptom Atlas — wordCloudLayout | 9 | placeWordsInBBox spiral packing, collision detection, font scaling |
 
 ---
 
