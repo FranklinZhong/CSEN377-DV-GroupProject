@@ -69,9 +69,6 @@ Screenshot*.png
 *.swo
 *~
 
-# ── Jupyter (personal study notes, not project code) ─────────────────────────
-AIDSE课程笔记汇总.ipynb
-
 # ── Internal files — not needed to run the web app ────────────────────────────
 CLAUDE.md
 PROGRESS.md
