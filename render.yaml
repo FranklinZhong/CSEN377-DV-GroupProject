@@ -13,9 +13,7 @@ services:
         # Update if your frontend URL differs (e.g. Render appended a suffix).
         value: "https://medinsight-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173"
       - key: DB_DOWNLOAD_URL
-        # Set this in Render dashboard to a Google Drive / Dropbox direct-download
-        # URL so the DB is fetched automatically on every cold start.
-        sync: false
+        value: https://github.com/FranklinZhong/CSEN377-DV-GroupProject/releases/download/v1.0-data/medinsight.db
 
   # ── Frontend: Vue 3 static build ───────────────────────────────────────────
   - type: web
@@ -28,7 +26,7 @@ services:
       - key: VITE_API_BASE_URL
         # Must point to the deployed backend URL. Update if Render assigned a
         # different name (e.g. medinsight-api-xxxx.onrender.com).
-        value: https://medinsight-api.onrender.com
+        value: https://medinsight-api-xylx.onrender.com
     routes:
       # Rewrite all paths to index.html so Vue Router handles client-side routing.
       - type: rewrite
