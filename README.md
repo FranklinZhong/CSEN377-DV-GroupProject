@@ -264,37 +264,7 @@ cd frontend && npm run build
 | Sprint 3 | 5/15–5/21 | ✅ All three visualizations functional end-to-end |
 | Sprint 4 | 5/22–5/28 | ✅ UI polish, heatmap redesign, 234-test suite, clean production build |
 | Sprint 5 | 5/29      | ✅ TF-IDF word cloud, tooltip fix, codebase cleanup |
-| Sprint 6 | 5/30      | ✅ Symptom Atlas v2.0 (SVG zone-clustered word cloud), 237-test suite, English-only codebase |
-
----
-
-## Changelog
-
-### 2026-05-30 — Symptom Atlas v2.0 & English-only codebase
-- Rewrote `CorpusWordCloud.vue` as **Symptom Atlas v2.0**: SVG zone-clustered layout — 15 independent organ boxes with dashed connector lines, anchor dots, and organ-colored TF-IDF word groups; replaces the canvas spiral approach
-- Added `wordCloudLayout.ts`: spiral packing algorithm with AABB collision detection and font/opacity scaling by TF-IDF score
-- 15 new tests (9 wordCloudLayout + 6 CorpusWordCloud) — 237 tests total
-- Translated all Chinese comments and docstrings to English across every source file
-
-### 2026-05-29 — TF-IDF word cloud & tooltip fix
-- Added `CorpusWordCloud.vue` v1.0: canvas word cloud shaped to the anatomy silhouette, colored by body system, driven by `/api/corpus/nlp` TF-IDF data
-- Fixed tooltip overflow in `TrendAnimation.vue` via `<Teleport to="body">` — tooltip now tracks cursor correctly regardless of CSS containing blocks
-
-### 2026-05-28 — Vis 2 redesign + full test suite
-- Rewrote Vis 2 as a static XY heatmap (year × body system): row-wise color normalization, missing-data stripe pattern, CUSUM spike borders, color legend, row-click highlight, body-map row sync, and Pearson co-activation matrix
-- Added 173 Vitest unit tests for all three visualization logic layers (234 total); fixed pre-existing failure FE-AH-04
-- Fixed `npm run build`: upgraded vue-tsc 1.8 → 3.3, added `@types/d3`, set tsconfig lib to ES2022
-
-### 2026-05-26 — Hero polish & navigation
-- AnatomyHero v6.0: dot-grid overlay, organ pulse rings, HUD text, callout labels
-- Drug ticker names now link directly to drug detail pages
-
-### 2026-05-24 — UI overhaul
-- Full dark-theme redesign: holographic anatomy hero, interactive anatomy body with mode toggle, stabilized hover-card heights
-- Added "About the Data" modal on the homepage
-
-### 2026-05-23 — Stability
-- SQLite concurrency fix (`check_same_thread=False`, `busy_timeout=5000`)
+| Sprint 6 | 5/30      | ✅ Symptom Atlas v2.0 (SVG zone-clustered word cloud), 237-test suite |
 
 ---
 
