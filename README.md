@@ -4,6 +4,10 @@ Drug Visualization Platform | CSEN 377 Data Visualization, SCU Spring 2026
 
 > Search any drug and explore its effects on the human body from three angles: official records, historical adverse event trends, and real patient feedback.
 
+**Live Demo:** https://medinsight-frontend.onrender.com
+
+![MedInsight Homepage](Homepage.png)
+
 ---
 
 ## Features
@@ -25,6 +29,22 @@ Drug Visualization Platform | CSEN 377 Data Visualization, SCU Spring 2026
 | WebMD Drug Reviews | Kaggle (CC BY-NC-SA 4.0, academic use) | 4.2M+ patient reviews |
 
 > The SQLite database (`data/processed/medinsight.db`, ~151 MB) is excluded from git. See **Data Setup** below.
+
+---
+
+## Live Deployment
+
+The app is deployed on [Render](https://render.com) (free tier):
+
+| Service | URL |
+|---------|-----|
+| Frontend | https://medinsight-frontend.onrender.com |
+| Backend API | https://medinsight-api-xylx.onrender.com |
+| Health check | https://medinsight-api-xylx.onrender.com/api/health |
+
+> **Note:** The free tier spins down after 15 minutes of inactivity. The first request after idle may take 60–90 seconds while the server wakes up and re-downloads the database (~153 MB). Open the health check URL first to warm up before a demo.
+
+The database is hosted as a [GitHub Release asset](https://github.com/FranklinZhong/CSEN377-DV-GroupProject/releases/tag/v1.0-data) and downloaded automatically on each cold start via `start.sh`.
 
 ---
 
