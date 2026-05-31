@@ -1,7 +1,7 @@
 """
 api_cache table operations.
 
-All external API results (FDA Drug Label, FAERS API, Claude) are cached here
+All external API results (FDA Drug Label, FAERS API) are cached here
 so that repeated requests for the same drug are instant.
 """
 
