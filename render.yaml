@@ -3,7 +3,6 @@ services:
   - type: web
     name: medinsight-api
     runtime: python
-    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: bash start.sh
     envVars:
