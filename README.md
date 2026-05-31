@@ -229,13 +229,13 @@ Open [http://localhost:5173](http://localhost:5173)
 
 ## Testing
 
-The project has a 234-test suite covering all three visualization layers:
+The project has a 237-test suite covering all three visualization layers:
 
 ```bash
 # Backend unit + integration tests (61 tests)
 pytest tests/backend/ -v
 
-# Frontend unit tests (173 tests)
+# Frontend unit tests (176 tests)
 cd frontend && npx vitest run --reporter=verbose
 
 # Production build verification
@@ -249,6 +249,8 @@ cd frontend && npm run build
 | Frontend logic — Vis 2 | 51 | yearData, pearson, correlationData, getActiveRow, cellFill |
 | Frontend logic — Vis 3 | 53 | netSentiment, knotX/R, ropeWidth, centerColor, topTerms |
 | Component integration | 17 | mount + emit + API mock for all 3 visualizations |
+| Word cloud — CorpusWordCloud | 6 | SVG atlas render, loading/error states, TF-IDF API integration |
+| Word cloud — wordCloudLayout | 9 | placeWordsInBBox spiral packing, collision detection, font scaling |
 
 ---
 
@@ -261,16 +263,22 @@ cd frontend && npm run build
 | Sprint 2 | 5/8–5/14 | ✅ FastAPI backend (all endpoints), Vue 3 scaffold, SQLite integration |
 | Sprint 3 | 5/15–5/21 | ✅ All three visualizations functional end-to-end |
 | Sprint 4 | 5/22–5/28 | ✅ UI polish, heatmap redesign, 234-test suite, clean production build |
-| Sprint 5 | 5/29      | ✅ TF-IDF word cloud, final bug fixes, codebase cleanup for submission |
+| Sprint 5 | 5/29      | ✅ TF-IDF word cloud, tooltip fix, codebase cleanup |
+| Sprint 6 | 5/30      | ✅ Symptom Atlas v2.0 (SVG zone-clustered word cloud), 237-test suite, English-only codebase |
 
 ---
 
 ## Changelog
 
-### 2026-05-29 — Final cleanup & submission prep
-- Added `CorpusWordCloud.vue`: canvas word cloud shaped to the anatomy silhouette, colored by body system, driven by TF-IDF patient vocabulary
+### 2026-05-30 — Symptom Atlas v2.0 & English-only codebase
+- Rewrote `CorpusWordCloud.vue` as **Symptom Atlas v2.0**: SVG zone-clustered layout — 15 independent organ boxes with dashed connector lines, anchor dots, and organ-colored TF-IDF word groups; replaces the canvas spiral approach
+- Added `wordCloudLayout.ts`: spiral packing algorithm with AABB collision detection and font/opacity scaling by TF-IDF score
+- 15 new tests (9 wordCloudLayout + 6 CorpusWordCloud) — 237 tests total
+- Translated all Chinese comments and docstrings to English across every source file
+
+### 2026-05-29 — TF-IDF word cloud & tooltip fix
+- Added `CorpusWordCloud.vue` v1.0: canvas word cloud shaped to the anatomy silhouette, colored by body system, driven by `/api/corpus/nlp` TF-IDF data
 - Fixed tooltip overflow in `TrendAnimation.vue` via `<Teleport to="body">` — tooltip now tracks cursor correctly regardless of CSS containing blocks
-- Translated all inline comments and docstrings from Chinese to English across the entire codebase
 
 ### 2026-05-28 — Vis 2 redesign + full test suite
 - Rewrote Vis 2 as a static XY heatmap (year × body system): row-wise color normalization, missing-data stripe pattern, CUSUM spike borders, color legend, row-click highlight, body-map row sync, and Pearson co-activation matrix
