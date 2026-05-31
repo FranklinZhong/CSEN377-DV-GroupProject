@@ -59,6 +59,8 @@ dist/
 .DS_Store
 .AppleDouble
 .LSOverride
+截屏*.png
+Screenshot*.png
 
 # ── Editor ────────────────────────────────────────────────────────────────────
 .vscode/settings.json

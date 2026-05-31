@@ -31,12 +31,12 @@ def corpus_nlp(conn: sqlite3.Connection = Depends(_conn)):
       sentiment — pos/neg/neutral distribution per body_part
     """
     try:
-        # ── TF-IDF: top 5 terms per body_part ──────────────────────────
+        # ── TF-IDF: all terms per body_part (rank <= 15) ───────────────
         tfidf_rows = conn.execute(
             """
             SELECT body_part, term, tfidf_score, score_norm, rank
             FROM corpus_tfidf
-            WHERE rank <= 5
+            WHERE rank <= 15
             ORDER BY body_part, rank
             """
         ).fetchall()

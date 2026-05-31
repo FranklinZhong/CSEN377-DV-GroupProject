@@ -1,29 +1,29 @@
 """
-MedInsight Pipeline — 主入口
+MedInsight Pipeline — main entry point
 
-读取已清洗的 CSV，写入 SQLite medinsight.db。
+Reads cleaned CSVs and writes to SQLite medinsight.db.
 
-步骤
-----
-  Step 1  build_drugs        从 FAERS + WebMD 建立 drugs 表
-  Step 2  load_faers         FAERS 信号 → effects + faers_quarterly 表
-  Step 3  load_webmd         WebMD 评论 → reviews + review_clusters 表
-  Step 4  build_aliases      drug_aliases 表（品牌名→通用名 + 变体）
-  Step 5  build_search_index search_index 表
+Steps
+-----
+  Step 1  build_drugs        build drugs table from FAERS + WebMD
+  Step 2  load_faers         FAERS signals → effects + faers_quarterly tables
+  Step 3  load_webmd         WebMD reviews → reviews + review_clusters tables
+  Step 4  build_aliases      drug_aliases table (brand → generic + variants)
+  Step 5  build_search_index search_index table
   Step 6  aggregate_rating   reviews.rating → drugs.overall_rating (v3.5)
   Step 7  fill_indication    OpenFDA → drugs.indication_summary / mechanism / dosage / route (v3.5)
   Step 8  build_benefits     indication text → effects (effect_type='benefit') (v3.5)
 
-运行
-----
-  python pipeline/run_pipeline.py              # 全部步骤
-  python pipeline/run_pipeline.py --faers      # 只跑 FAERS
-  python pipeline/run_pipeline.py --webmd      # 只跑 WebMD
-  python pipeline/run_pipeline.py --index      # 只重建索引
-  python pipeline/run_pipeline.py --ratings    # 只聚合 rating（v3.5）
-  python pipeline/run_pipeline.py --indications # 只填 indication（v3.5）
-  python pipeline/run_pipeline.py --benefits   # 只构建 benefits（v3.5）
-  python pipeline/run_pipeline.py --v35        # 跑 v3.5 全部三步
+Usage
+-----
+  python pipeline/run_pipeline.py              # all steps
+  python pipeline/run_pipeline.py --faers      # FAERS only
+  python pipeline/run_pipeline.py --webmd      # WebMD only
+  python pipeline/run_pipeline.py --index      # rebuild index only
+  python pipeline/run_pipeline.py --ratings    # aggregate ratings only (v3.5)
+  python pipeline/run_pipeline.py --indications # fill indications only (v3.5)
+  python pipeline/run_pipeline.py --benefits   # build benefits only (v3.5)
+  python pipeline/run_pipeline.py --v35        # run all v3.5 steps
 """
 
 import re
@@ -37,20 +37,20 @@ from pathlib import Path
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-# pipeline 模块路径
+# pipeline module path
 sys.path.insert(0, str(Path(__file__).parent))
 from config import DB_PATH
 from soc_body_map import BODY_PART_KEYWORDS
 from build_drug_aliases import build_aliases, normalize as norm_name
 
-# ── 路径 ──────────────────────────────────────────────────────────────────────
+# ── Paths ─────────────────────────────────────────────────────────────────────
 
 _BASE  = Path(__file__).parent.parent
 _FAERS = _BASE / "data/processed/FAERS/cleaned_faers_signals_prr_ror.csv"
 _WEBMD = _BASE / "data/processed/WebMDReview/cleaned_webmd_reviews.csv"
 _DB    = DB_PATH
 
-# ── 常量 ──────────────────────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 
 _BODY_TO_SVG = {
     "brain": "nervous_system", "eye": "ophthalmologic_system",
@@ -76,7 +76,7 @@ def _conn() -> sqlite3.Connection:
 
 
 def _init_tables(conn: sqlite3.Connection):
-    """幂等建表（与 backend/db.py 保持一致）。"""
+    """Create tables (idempotent — consistent with backend/db.py)."""
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS drugs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -135,10 +135,10 @@ def _init_tables(conn: sqlite3.Connection):
     conn.commit()
 
 
-# ── PT → body_part 映射 ───────────────────────────────────────────────────────
+# ── PT → body_part mapping ────────────────────────────────────────────────────
 
 def _pt_to_body_parts(pt: str) -> list[str]:
-    """MedDRA Preferred Term → body_part list（基于 BODY_PART_KEYWORDS 关键词）。"""
+    """MedDRA Preferred Term → body_part list (keyword match via BODY_PART_KEYWORDS)."""
     pt_lower = pt.lower()
     found = []
     for body_part, kws in BODY_PART_KEYWORDS.items():
@@ -148,7 +148,7 @@ def _pt_to_body_parts(pt: str) -> list[str]:
 
 
 def _review_to_body_parts(text: str) -> list[str]:
-    """Review text → body_part list（关键词匹配，不用 spaCy，快速）。"""
+    """Review text → body_part list (keyword match without spaCy, fast)."""
     t = text.lower()
     found = []
     for body_part, kws in BODY_PART_KEYWORDS.items():
@@ -173,7 +173,7 @@ def _confidence(count: int) -> str:
     return "insufficient"
 
 
-# ── 非药品过滤 ────────────────────────────────────────────────────────────────
+# ── Non-drug filter ───────────────────────────────────────────────────────────
 
 _BAD_DRUG_PATTERNS = [
     re.compile(r'\s+mix$', re.I),
@@ -195,7 +195,7 @@ _BAD_DRUG_PATTERNS = [
     ),
     re.compile(r'hour\s+(pain|nasal)\s+relief', re.I),
     re.compile(r'^\s*alcohol,\s+rubbing\s*$', re.I),
-    re.compile(r',\s*$', re.I),  # 尾部逗号（截断的不完整名称）
+    re.compile(r',\s*$', re.I),  # trailing comma (truncated/incomplete name)
 ]
 
 def _is_valid_drug(name: str) -> bool:
@@ -208,8 +208,8 @@ def _is_valid_drug(name: str) -> bool:
 
 def build_drugs(conn: sqlite3.Connection) -> dict[str, int]:
     """
-    从 FAERS 和 WebMD 的唯一药品名建立 drugs 表。
-    返回 {canonical_name: drug_id}。
+    Build the drugs table from unique drug names in FAERS and WebMD.
+    Returns {canonical_name: drug_id}.
     """
     print("  [1/5] Building drugs table...")
     conn.execute("DELETE FROM drugs")
@@ -224,7 +224,7 @@ def build_drugs(conn: sqlite3.Connection) -> dict[str, int]:
         df = pd.read_csv(_WEBMD, usecols=["Drug"])
         names.update(df["Drug"].str.lower().str.strip().dropna().unique())
 
-    # 规范化去重，并过滤非药品条目
+    # Normalize, deduplicate, and filter out non-drug entries
     canonical_set: set[str] = set()
     for n in names:
         c = norm_name(n)
@@ -278,7 +278,7 @@ def load_faers(conn: sqlite3.Connection, id_map: dict[str, int]):
     df = df.dropna(subset=["drug_id"])
     df["drug_id"] = df["drug_id"].astype(int)
 
-    # ── effects（副作用 → body_part 聚合，每药每body_part一行）
+    # ── effects (side effects → body_part aggregation, one row per drug×body_part)
     effects_agg: dict[tuple, dict] = {}
     for _, row in df.iterrows():
         pts = _pt_to_body_parts(str(row["PT_NORM"]))
@@ -290,7 +290,7 @@ def load_faers(conn: sqlite3.Connection, id_map: dict[str, int]):
             if row.get("any_signal"):
                 effects_agg[key]["signal"] = 1
 
-    # 每药每body_part取报告数最高的 PT 代表
+    # Per drug×body_part, keep the PT with the highest report count as representative
     drug_bp_best: dict[tuple[int, str], dict] = {}
     for (drug_id, bp, pt), val in effects_agg.items():
         k = (drug_id, bp)
@@ -383,13 +383,13 @@ def load_webmd(conn: sqlite3.Connection, id_map: dict[str, int]):
 
     print(f"      Processing {len(df):,} reviews (VADER + keyword NLP)...")
 
-    # 情感分析
+    # Sentiment analysis
     df["sentiment"] = df["Reviews"].apply(_sentiment)
 
-    # body_part 提取
+    # Body part extraction
     df["body_parts"] = df["Reviews"].apply(_review_to_body_parts)
 
-    # 写 reviews 表（分批，避免内存爆炸）
+    # Write reviews table in batches to avoid memory exhaustion
     BATCH = 10_000
     total_reviews = 0
     for i in range(0, len(df), BATCH):
@@ -399,9 +399,9 @@ def load_webmd(conn: sqlite3.Connection, id_map: dict[str, int]):
                 int(r["drug_id"]),
                 float(r["Satisfaction"]) if pd.notna(r["Satisfaction"]) else None,
                 r["sentiment"],
-                r["Reviews"][:500],           # 截断，避免 DB 过大
+                r["Reviews"][:500],           # truncate to keep DB size manageable
                 json.dumps(r["body_parts"]),
-                None,                          # extracted_effects 后续扩展
+                None,                          # extracted_effects reserved for future use
                 "WebMD",
             )
             for _, r in chunk.iterrows()
@@ -417,7 +417,7 @@ def load_webmd(conn: sqlite3.Connection, id_map: dict[str, int]):
             print(f"      {total_reviews:,} reviews written...")
     conn.commit()
 
-    # ── review_clusters（按 drug_id + body_part + sentiment 聚合）
+    # ── review_clusters (aggregate by drug_id × body_part × sentiment)
     print("      Building review_clusters...")
     df_exploded = df.explode("body_parts")
     df_exploded = df_exploded.dropna(subset=["body_parts"])
@@ -432,7 +432,7 @@ def load_webmd(conn: sqlite3.Connection, id_map: dict[str, int]):
         .reset_index()
     )
 
-    # top_terms: 取该 cluster 里出现频率最高的关键词
+    # top_terms: most frequent keywords for this cluster
     def top_terms_for_cluster(sub_df, body_part, n=5):
         kws = BODY_PART_KEYWORDS.get(body_part, [])
         counts = defaultdict(int)
@@ -516,7 +516,7 @@ def build_search_index(conn: sqlite3.Connection):
     print(f"      → {len(index_rows)} index entries.")
 
 
-# ── 主入口 ────────────────────────────────────────────────────────────────────
+# ── Main entry point ─────────────────────────────────────────────────────────
 
 def main():
     args = set(sys.argv[1:])

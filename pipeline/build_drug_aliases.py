@@ -1,27 +1,27 @@
 """
-build_drug_aliases.py  —  跨数据集药品名标准化
+build_drug_aliases.py  —  cross-dataset drug name normalization
 
-问题背景
---------
-FAERS 和 WebMD 的药品名重叠率只有 15.3%（精确匹配）。
-主要原因：
-  1. 大小写不同：FAERS 全大写（METFORMIN），WebMD 小写（metformin）
-  2. 品牌名 vs 通用名：Glucophage vs Metformin
-  3. 后缀变体：lisinopril / lisinopril hcl / lisinopril solution
-  4. 缩写/简称：Humira vs ADALIMUMAB
+Problem
+-------
+FAERS and WebMD drug name overlap is only 15.3% (exact match).
+Root causes:
+  1. Case differences: FAERS all-caps (METFORMIN) vs WebMD lowercase (metformin)
+  2. Brand vs generic: Glucophage vs Metformin
+  3. Suffix variants: lisinopril / lisinopril hcl / lisinopril solution
+  4. Abbreviations: Humira vs ADALIMUMAB
 
-解决方案
+Solution
 --------
-1. 归一化（normalize）：统一小写，去除常见后缀，去括号内容
-2. 品牌→通用名映射：内置常见品牌名字典
-3. 用 rapidfuzz 做模糊合并（可选，覆盖剩余歧义）
-4. 写入 SQLite drug_aliases 表
+1. normalize(): lowercase, strip common suffixes, remove parenthetical content
+2. Brand → generic mapping: built-in dictionary of common brand names
+3. rapidfuzz fuzzy merge (optional, covers remaining ambiguity)
+4. Write to SQLite drug_aliases table
 
-运行方式
---------
+Usage
+-----
   python pipeline/build_drug_aliases.py
 
-输出：更新 data/processed/medinsight.db 中的 drug_aliases 表
+Output: updates the drug_aliases table in data/processed/medinsight.db
 """
 
 import re
@@ -31,14 +31,14 @@ from pathlib import Path
 import pandas as pd
 from rapidfuzz import fuzz
 
-# ── 路径 ──────────────────────────────────────────────────────────────────────
+# ── Paths ─────────────────────────────────────────────────────────────────────
 
 _BASE    = Path(__file__).parent.parent
 _DB      = _BASE / "data" / "processed" / "medinsight.db"
 _FAERS   = _BASE / "data" / "processed" / "FAERS" / "cleaned_faers_signals_prr_ror.csv"
 _WEBMD   = _BASE / "data" / "processed" / "WebMDReview" / "cleaned_webmd_reviews.csv"
 
-# ── 常见后缀（规范化时去除） ──────────────────────────────────────────────────
+# ── Common suffixes stripped during normalization ─────────────────────────────
 
 _SUFFIX_PATTERN = re.compile(
     r"\s+("
@@ -53,7 +53,7 @@ _SUFFIX_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# ── 品牌名 → 通用名 手工映射（覆盖最常见情况） ───────────────────────────────
+# ── Brand name → generic name manual mapping (covers most common cases) ──────
 
 BRAND_TO_GENERIC: dict[str, str] = {
     # Diabetes
@@ -174,33 +174,33 @@ BRAND_TO_GENERIC: dict[str, str] = {
 }
 
 
-# ── 核心规范化函数 ────────────────────────────────────────────────────────────
+# ── Core normalization function ───────────────────────────────────────────────
 
 def normalize(name: str) -> str:
     """
-    统一药品名：
-      1. 小写
-      2. 去括号内容（如 "warfarin (bulk) 100%"）
-      3. 去常见剂型/剂量后缀
-      4. 去多余空格
+    Normalize a drug name:
+      1. lowercase
+      2. strip parenthetical content (e.g. "warfarin (bulk) 100%")
+      3. strip common dosage form / strength suffixes
+      4. collapse whitespace
     """
     s = str(name).lower().strip()
-    s = re.sub(r"\(.*?\)", "", s)          # 去括号内容
+    s = re.sub(r"\(.*?\)", "", s)          # strip parenthetical content
     s = _SUFFIX_PATTERN.sub("", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
 
 def to_canonical(normalized: str) -> str:
-    """通过品牌名映射找通用名；找不到就返回原规范化名。"""
+    """Look up generic name via brand mapping; returns original normalized name if not found."""
     return BRAND_TO_GENERIC.get(normalized, normalized)
 
 
-# ── 构建别名表 ────────────────────────────────────────────────────────────────
+# ── Build alias table ─────────────────────────────────────────────────────────
 
 def build_aliases() -> list[dict]:
     """
-    读取 FAERS 和 WebMD 的全部药品名，生成 alias → canonical_name 的映射列表。
+    Read all drug names from FAERS and WebMD, produce alias → canonical_name mapping list.
     """
     aliases: dict[str, tuple[str, float]] = {}  # alias → (canonical, confidence)
 
@@ -208,11 +208,11 @@ def build_aliases() -> list[dict]:
         if alias and canonical and alias != canonical:
             aliases[alias] = (canonical, confidence)
 
-    # 1. 品牌名 → 通用名（手工映射，confidence=1.0）
+    # 1. Brand → generic (manual mapping, confidence=1.0)
     for brand, generic in BRAND_TO_GENERIC.items():
         add(brand, generic, 1.0)
 
-    # 2. FAERS 药品名规范化变体
+    # 2. FAERS drug name normalized variants
     if _FAERS.exists():
         faers_names = pd.read_csv(_FAERS, usecols=["DRUGNAME_NORM"])["DRUGNAME_NORM"].unique()
         for raw in faers_names:
@@ -224,7 +224,7 @@ def build_aliases() -> list[dict]:
             if norm != canonical:
                 add(norm, canonical, 0.95)
 
-    # 3. WebMD 药品名规范化变体
+    # 3. WebMD drug name normalized variants
     if _WEBMD.exists():
         webmd_names = pd.read_csv(_WEBMD, usecols=["Drug"])["Drug"].unique()
         for raw in webmd_names:
@@ -242,7 +242,7 @@ def build_aliases() -> list[dict]:
     ]
 
 
-# ── 写入数据库 ────────────────────────────────────────────────────────────────
+# ── Write to database ─────────────────────────────────────────────────────────
 
 def write_to_db(alias_rows: list[dict]):
     if not _DB.exists():
@@ -250,7 +250,7 @@ def write_to_db(alias_rows: list[dict]):
         return
 
     conn = sqlite3.connect(_DB)
-    conn.execute("DELETE FROM drug_aliases")      # 清空后重写
+    conn.execute("DELETE FROM drug_aliases")      # clear before rewrite
 
     conn.executemany(
         "INSERT INTO drug_aliases (alias, canonical_name, confidence) VALUES (?,?,?)",
@@ -261,14 +261,14 @@ def write_to_db(alias_rows: list[dict]):
     print(f"[OK] {len(alias_rows)} alias rows written to drug_aliases.")
 
 
-# ── 独立运行入口 ──────────────────────────────────────────────────────────────
+# ── Standalone entry point ────────────────────────────────────────────────────
 
 def main():
     print("Building drug aliases...")
     rows = build_aliases()
     print(f"  Generated {len(rows)} alias mappings.")
 
-    # 简单报告
+    # Brief report
     from collections import Counter
     conf_dist = Counter(round(r["confidence"], 1) for r in rows)
     for conf, cnt in sorted(conf_dist.items(), reverse=True):

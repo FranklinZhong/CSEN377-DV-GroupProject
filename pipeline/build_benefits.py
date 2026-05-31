@@ -1,23 +1,23 @@
 """
-build_benefits.py — 从 indication_summary 文本派生 benefits 数据
+build_benefits.py — derive benefit effects from indication_summary text
 
-v3.5 修复：effects 表 effect_type='benefit' 为 0 条，BodyMap 无法显示绿色高亮。
+v3.5 fix: effects table had 0 rows with effect_type='benefit', BodyMap showed no green highlights.
 
-逻辑
-----
-1. 读取 drugs 表里 indication_summary 非空的药品
-2. 对 indication 文本 + mechanism_of_action 应用 BODY_PART_KEYWORDS 关键词匹配
-3. 命中的 body_part 视为该药对那个身体部位"有益"
+Logic
+-----
+1. Load drugs with a non-null indication_summary
+2. Apply BODY_PART_KEYWORDS keyword matching to indication text + mechanism_of_action
+3. Matched body_part is treated as a benefit target for that drug
 4. INSERT INTO effects (effect_type='benefit', source='FDA Label', confidence='medium')
 
-注意
-----
-- 不删除现有 side_effect 记录，只清理 effect_type='benefit' source='FDA Label'
-- severity 统一 'low'（治疗作用本身不是严重程度概念）
-- frequency = 该 body_part 在 indication 文本中的关键词出现次数（归一化 0-1）
+Notes
+-----
+- Does not delete existing side_effect rows; only clears effect_type='benefit' source='FDA Label'
+- severity is always 'low' (therapeutic action is not a severity concept)
+- frequency = keyword hit count for body_part in indication text (normalized 0-1)
 
-运行
-----
+Usage
+-----
   python pipeline/build_benefits.py
 """
 

@@ -1,11 +1,11 @@
 """
-aggregate_rating.py — 从 WebMD reviews.rating 聚合到 drugs.overall_rating
+aggregate_rating.py — aggregate WebMD reviews.rating → drugs.overall_rating
 
-v3.5 修复：drugs 表 8689 行 overall_rating 全 NULL。
-做法：对 reviews 表里有 rating 的行 GROUP BY drug_id 求均值，回写到 drugs。
+v3.5 fix: drugs table had 8689 rows with overall_rating = NULL.
+Approach: GROUP BY drug_id over reviews rows with a rating, compute average, write back.
 
-运行
-----
+Usage
+-----
   python pipeline/aggregate_rating.py
 """
 

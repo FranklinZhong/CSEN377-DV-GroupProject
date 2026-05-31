@@ -1,21 +1,22 @@
 """
-fill_indication_summary.py — 从 OpenFDA Drug Label 抽取 indication / mechanism / dosage
+fill_indication_summary.py — extract indication / mechanism / dosage from OpenFDA Drug Labels
 
-v3.5 修复：drugs 表 8,171 行 indication_summary 全 NULL。
-做法：chunked 读 OpenFDA clean_label_master.csv（5.7GB），
-     通过 openfda_generic_name 关联 drug_id，
-     提取并清洗 indications_and_usage / mechanism_of_action / dosage_and_administration / openfda_route。
+v3.5 fix: drugs table had 8,171 rows with indication_summary = NULL.
+Approach: chunked read of OpenFDA clean_label_master.csv (5.7 GB),
+          join on openfda_generic_name to drug_id,
+          extract and clean indications_and_usage / mechanism_of_action /
+          dosage_and_administration / openfda_route.
 
-新增字段（首次运行自动 ALTER）
-  drugs.indication_summary    ← 已有
-  drugs.mechanism_of_action   ← 新增
-  drugs.dosage_form           ← 新增
-  drugs.route                 ← 新增
+New columns added (ALTER runs automatically on first execution):
+  drugs.indication_summary    ← existing
+  drugs.mechanism_of_action   ← new
+  drugs.dosage_form           ← new
+  drugs.route                 ← new
 
-运行
-----
+Usage
+-----
   python pipeline/fill_indication_summary.py
-  python pipeline/fill_indication_summary.py --limit 200000   # 仅扫描前 N 行（调试用）
+  python pipeline/fill_indication_summary.py --limit 200000   # scan only first N rows (debug)
 """
 
 import re
@@ -38,7 +39,7 @@ _MAX_INDIC = 350
 _MAX_MECH = 250
 _MAX_DOSE = 200
 
-# ── 清洗辅助 ──────────────────────────────────────────────────────────────────
+# ── Cleaning helpers ──────────────────────────────────────────────────────────
 
 _LEAD_NOISE = re.compile(
     r"^\s*(\d+\s*)?(INDICATIONS?\s+AND\s+USAGE|MECHANISM\s+OF\s+ACTION|"
@@ -87,7 +88,7 @@ def _normalize_for_match(name: str) -> list[str]:
     return [c for c in cands if c]
 
 
-# ── Schema 扩展（幂等） ───────────────────────────────────────────────────────
+# ── Schema extension (idempotent) ────────────────────────────────────────────
 
 def _ensure_columns(conn: sqlite3.Connection):
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(drugs)")}
@@ -103,7 +104,7 @@ def _ensure_columns(conn: sqlite3.Connection):
     conn.commit()
 
 
-# ── 主流程 ────────────────────────────────────────────────────────────────────
+# ── Main pipeline ────────────────────────────────────────────────────────────
 
 def fill(conn: sqlite3.Connection, row_limit: int | None = None) -> dict:
     _ensure_columns(conn)
@@ -116,8 +117,8 @@ def fill(conn: sqlite3.Connection, row_limit: int | None = None) -> dict:
                 id_map[norm_name(n)] = row["id"]
     print(f"      → {len(id_map):,} canonical names indexed")
 
-    # 收集：{drug_id: {indication, mechanism, dosage, route}}
-    # 用第一个非空值（OpenFDA CSV 已按 effective_date 排序则取最新版）
+    # Collect: {drug_id: {indication, mechanism, dosage, route}}
+    # Use first non-null value (OpenFDA CSV sorted by effective_date gives the latest version)
     collected: dict[int, dict[str, str | None]] = {}
 
     usecols = [
@@ -138,7 +139,7 @@ def fill(conn: sqlite3.Connection, row_limit: int | None = None) -> dict:
             if row_limit and total_rows > row_limit:
                 break
 
-            # 尝试 generic_name / brand_name 都做候选匹配
+            # Try both generic_name and brand_name as match candidates
             candidates: list[str] = []
             candidates.extend(_normalize_for_match(r.get("openfda_generic_name")))
             candidates.extend(_normalize_for_match(r.get("openfda_brand_name")))
@@ -188,7 +189,7 @@ def fill(conn: sqlite3.Connection, row_limit: int | None = None) -> dict:
           f"{matched_rows:,} matched, {len(collected):,} drugs collected "
           f"({time.time() - t0:.0f}s)")
 
-    # 批量回写
+    # Batch write-back
     print("  Writing back to drugs table ...")
     upd_rows = [
         (b["indication"], b["mechanism"], b["dosage"], b["route"], drug_id)

@@ -61,12 +61,11 @@
         </button>
       </div>
 
-      <!-- Right: anatomy figure + word cloud side by side -->
+      <!-- Right: anatomy figure -->
       <div class="hero-figure">
         <div class="figure-inner">
           <AnatomyHero />
         </div>
-        <CorpusWordCloud class="hero-wc" />
         <div class="figure-glow"></div>
       </div>
     </div>
@@ -204,6 +203,19 @@
           No drugs found under "{{ selectedLetter }}".
         </p>
       </div>
+    </div>
+
+    <!-- ── Body Word Cloud ── -->
+    <div class="wordcloud-section">
+      <div class="wcs-header">
+        <span class="wcs-badge">15 BODY SYSTEMS · TF-IDF · 287K REVIEWS</span>
+        <h2 class="wcs-title">Symptom Atlas</h2>
+        <p class="wcs-desc">
+          Real patient vocabulary, mapped to the human body. Each region surfaces the
+          words most distinctive to it — extracted by TF-IDF from 287,256 WebMD reviews.
+        </p>
+      </div>
+      <CorpusWordCloud />
     </div>
 
     <!-- ── Corpus NLP Insights ── -->
@@ -575,7 +587,7 @@ async function selectLetter(l: string) {
   width: 100%;
   max-width: 1200px;
   display: grid;
-  grid-template-columns: 1fr 520px;
+  grid-template-columns: 1fr 320px;
   align-items: center;
   gap: 0;
   padding: 56px 60px 24px;
@@ -672,25 +684,21 @@ async function selectLetter(l: string) {
   letter-spacing: .06em;
 }
 
-/* Right: anatomy figure + word cloud */
+/* Right: anatomy figure */
 .hero-figure {
   position: relative;
   height: 520px;
   display: flex;
-  flex-direction: row;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
 }
 .figure-inner {
-  flex: 1;
+  width: 100%;
   height: 100%;
   padding-top: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.hero-wc {
-  flex-shrink: 0;
 }
 .figure-glow {
   position: absolute;
@@ -887,6 +895,54 @@ async function selectLetter(l: string) {
 .drug-name { font-weight: 500; color: var(--text); }
 .drug-use { color: var(--muted); font-size: .85rem; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-msg { color: var(--muted); text-align: center; padding: 24px; font-style: italic; font-size: 0.85rem; }
+
+/* ── Body Word Cloud Section ─────────────────────────────────── */
+.wordcloud-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+  max-width: 1200px;
+  padding: 64px 60px 0;
+}
+
+.wcs-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.wcs-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: #00d4ff;
+  background: rgba(0,212,255,.08);
+  border: 1px solid rgba(0,212,255,.25);
+  padding: 3px 10px;
+  border-radius: 2px;
+}
+
+.wcs-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: .02em;
+}
+
+.wcs-desc {
+  font-size: 0.82rem;
+  color: var(--text2);
+  line-height: 1.6;
+  margin: 0;
+}
 
 .disclaimer {
   margin-top: 32px;
