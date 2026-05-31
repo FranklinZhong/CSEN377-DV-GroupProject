@@ -6,21 +6,16 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: bash start.sh
-    # Persistent disk keeps medinsight.db across deploys ($0.25/GB/month).
-    # Upload the DB once via the Render Shell after first deploy.
-    disk:
-      name: medinsight-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: DB_PATH
-        value: /data/medinsight.db
+        # /tmp is writable on Render free tier; DB is re-downloaded on each cold start.
+        value: /tmp/medinsight.db
       - key: ALLOWED_ORIGINS
         # Update if your frontend URL differs (e.g. Render appended a suffix).
         value: "https://medinsight-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173"
       - key: DB_DOWNLOAD_URL
-        # Optional: set a direct-download URL for medinsight.db (Google Drive,
-        # Dropbox, etc.) so the DB is fetched automatically on first boot.
+        # Set this in Render dashboard to a Google Drive / Dropbox direct-download
+        # URL so the DB is fetched automatically on every cold start.
         sync: false
 
   # ── Frontend: Vue 3 static build ───────────────────────────────────────────
