@@ -45,7 +45,7 @@
         <span class="legend-label">Zero reports</span>
         <span class="legend-sep">·</span>
         <span class="legend-swatch spike-swatch"></span>
-        <span class="legend-label">CUSUM spike</span>
+        <span class="legend-label">CUSUM spike ⚠</span>
       </div>
 
       <!-- ── 2. Co-activation Matrix ── -->
@@ -356,6 +356,27 @@ function buildHeatmap() {
         .on('click', () => {
           selectedRow.value = selectedRow.value === part ? null : part
         })
+
+      if (sig) {
+        const cx = ci * CELL_W + CELL_W / 2
+        const cy = ri * CELL_H + CELL_H / 2
+        const badge = g.append('g')
+          .attr('transform', `translate(${cx},${cy})`)
+          .attr('pointer-events', 'none')
+        badge.append('circle')
+          .attr('r', 9)
+          .attr('fill', 'rgba(0,0,0,0.45)')
+          .attr('stroke', '#ef4444')
+          .attr('stroke-width', 1)
+        badge.append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('fill', '#ffffff')
+          .attr('font-size', '12px')
+          .attr('font-family', 'system-ui, sans-serif')
+          .attr('pointer-events', 'none')
+          .text('⚠')
+      }
     })
   })
 
