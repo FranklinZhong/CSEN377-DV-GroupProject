@@ -76,7 +76,6 @@ medinsight/
 │   ├── raw/                   # Raw downloads (gitignored)
 │   └── processed/             # DB + cleaning reports (DB gitignored)
 │
-├── docs/                      # Design documents
 ├── tests/                     # Backend (pytest) + Frontend (vitest)
 │   ├── backend/               # 61 pytest tests
 │   └── components/            # Vue component integration tests
@@ -109,7 +108,7 @@ The SQLite database (`data/processed/medinsight.db`, ~152 MB) is excluded from t
 
 **Dataset A: FAERS Drug Event Signal Dataset** (Kaggle)
 
-1. Go to [https://www.kaggle.com/datasets/nicholasgah/faers-drug-event-signal-dataset](https://www.kaggle.com/datasets/nicholasgah/faers-drug-event-signal-dataset)
+1. Go to [https://www.kaggle.com/datasets/anurmi/faers-drug-event-signals](https://www.kaggle.com/datasets/anurmi/faers-drug-event-signals)
 2. Click **Download** → save the ZIP
 3. Place it at:
    ```
@@ -149,10 +148,13 @@ python pipeline/clean_faers_signals.py
 python pipeline/clean_webmd_reviews.py
 
 # Stream-process OpenFDA label ZIPs → multiple per-drug JSON/CSV files
-python pipeline/clean_openfda_streaming.py
+python pipeline/clean_openfda_streaming.py \
+    --input-dir data/processed/OpenFDA/data/raw \
+    --output-dir data/processed/OpenFDA/data/processed \
+    --report data/processed/reports/openfda_cleaning_report.md
 ```
 
-Each script prints a summary of rows kept/dropped and writes a cleaning report to `data/processed/reports/`.
+Each script prints a summary of rows kept/dropped and writes its own cleaning report: FAERS → `data/processed/FAERS/faers_cleaning_summary.md`, WebMD → `data/processed/WebMDReview/cleaning_summary.txt`, OpenFDA → wherever `--report` points (e.g. `data/processed/reports/openfda_cleaning_report.md`).
 
 ---
 
@@ -175,7 +177,7 @@ python pipeline/run_pipeline.py --ratings      # recalculate drug ratings
 python pipeline/run_pipeline.py --v35          # run indications + benefits + ratings
 ```
 
-Expected output: `data/processed/medinsight.db` (~152 MB, 8,689 drugs, 287K+ reviews).
+Expected output: `data/processed/medinsight.db` (~152 MB, 8,171 drugs, 287K+ reviews).
 
 ---
 
@@ -367,7 +369,7 @@ Each WebMD review is scanned for mentions of any of the 15 body systems using a 
 - Mapping follows the [MedDRA System Organ Class (SOC)](https://www.meddra.org/) hierarchy — e.g. "Cardiac disorders" SOC → `heart`; "Nervous system disorders" + "Psychiatric disorders" → `brain`
 - FAERS adverse event terms (`PT_NORM`) are matched to body parts using the same SOC mapping
 
-This produces the `drug_body_effects` table (for Vis 1) and `reviews.extracted_body_parts` (for Vis 3).
+This produces the `effects` table (for Vis 1) and `reviews.extracted_body_parts` (for Vis 3).
 
 ---
 
@@ -418,13 +420,13 @@ All stages write into a single SQLite file (`data/processed/medinsight.db`, ~152
 
 | Table | Rows | Description |
 |-------|------|-------------|
-| `drugs` | 8,689 | Drug catalog with openFDA metadata |
-| `drug_body_effects` | — | Per-organ benefit / side-effect records |
+| `drugs` | 8,171 | Drug catalog with openFDA metadata |
+| `effects` | — | Per-organ benefit / side-effect records |
 | `drug_aliases` | — | Brand ↔ generic cross-reference |
 | `reviews` | 287,256 | Cleaned WebMD reviews with sentiment + body parts |
 | `review_clusters` | 54,324 | Aggregated drug × body_part × sentiment with top terms |
-| `faers_signals` | — | Quarterly FAERS report counts + CUSUM signal flags |
-| `corpus_tfidf` | 225 | 15 systems × top-15 TF-IDF terms (word cloud data) |
+| `faers_quarterly` | — | Quarterly FAERS report counts + CUSUM signal flags |
+| `corpus_tfidf` | 208 | 15 systems × top-15 TF-IDF terms (word cloud data) |
 | `corpus_heatmap` | — | Full cross-system TF-IDF matrix |
 | `corpus_sentiment` | 15 | Per-system positive / negative / neutral distribution |
 
@@ -462,7 +464,7 @@ cd frontend && npm run build
 | Sprint | Period | Highlights |
 |--------|--------|------------|
 | Sprint 0 | 4/24–4/30 | ✅ Planning, dataset selection, project scoping |
-| Sprint 1 | 5/1–5/7  | ✅ Data pipeline, SQLite DB built (8,689 drugs, 287K+ reviews) |
+| Sprint 1 | 5/1–5/7  | ✅ Data pipeline, SQLite DB built (8,171 drugs, 287K+ reviews) |
 | Sprint 2 | 5/8–5/14 | ✅ FastAPI backend (all endpoints), Vue 3 scaffold, SQLite integration |
 | Sprint 3 | 5/15–5/21 | ✅ All three visualizations functional end-to-end |
 | Sprint 4 | 5/22–5/28 | ✅ UI polish, heatmap redesign, 234-test suite, clean production build |
